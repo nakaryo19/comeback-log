@@ -5,6 +5,7 @@ import { fetchGoalTree, type GoalWithSubGoals } from "../lib/supabase/goals";
 import { OnboardingScreen } from "./goals/OnboardingScreen";
 import { GoalManagementScreen } from "./goals/GoalManagementScreen";
 import { HomeScreen } from "./home/HomeScreen";
+import { colors, spacing } from "../lib/theme";
 
 type ViewName = "home" | "goals";
 
@@ -25,7 +26,7 @@ export function MainApp() {
   if (!user || goals === null) {
     return (
       <View style={styles.center}>
-        <Text>読み込み中...</Text>
+        <Text style={styles.loadingText}>読み込み中...</Text>
       </View>
     );
   }
@@ -60,15 +61,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: colors.background,
+  },
+  loadingText: {
+    color: colors.textMuted,
   },
   signOutButton: {
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
+    borderTopColor: colors.borderLight,
+    backgroundColor: colors.background,
   },
   signOutButtonText: {
-    color: "#888",
+    color: colors.textMuted,
     fontSize: 13,
   },
 });

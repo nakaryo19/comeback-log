@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { AuthProvider, useAuth } from './lib/supabase/auth-context';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { MainApp } from './components/MainApp';
+import { colors } from './lib/theme';
 
 function AppContent() {
   const { session, loading } = useAuth();
@@ -10,7 +11,7 @@ function AppContent() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <Text>読み込み中...</Text>
+        <Text style={styles.loadingText}>読み込み中...</Text>
         <StatusBar style="auto" />
       </View>
     );
@@ -35,9 +36,12 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,
+  },
+  loadingText: {
+    color: colors.textMuted,
   },
 });

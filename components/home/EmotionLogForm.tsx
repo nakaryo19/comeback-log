@@ -2,8 +2,16 @@ import { useState } from "react";
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { createEmotionLog } from "../../lib/supabase/emotionLogs";
 import type { EmotionLog, EmotionScore, UUID } from "../../types/database";
+import { colors, radius, spacing } from "../../lib/theme";
 
 const SCORES: EmotionScore[] = [1, 2, 3, 4, 5];
+const SCORE_EMOJI: Record<EmotionScore, string> = {
+  1: "😞",
+  2: "🙁",
+  3: "😐",
+  4: "🙂",
+  5: "😄",
+};
 const TAGS = ["不安", "達成感", "焦り", "集中", "疲労"];
 
 export function EmotionLogForm({
@@ -42,7 +50,7 @@ export function EmotionLogForm({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.prompt}>今の気分は？</Text>
+      <Text style={styles.prompt}>お疲れさまでした。今の気分は？</Text>
 
       <View style={styles.scoreRow}>
         {SCORES.map((value) => (
@@ -51,9 +59,7 @@ export function EmotionLogForm({
             style={[styles.scoreButton, score === value && styles.scoreButtonActive]}
             onPress={() => setScore(value)}
           >
-            <Text style={[styles.scoreButtonText, score === value && styles.scoreButtonTextActive]}>
-              {value}
-            </Text>
+            <Text style={styles.scoreEmoji}>{SCORE_EMOJI[value]}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -74,6 +80,7 @@ export function EmotionLogForm({
         <TextInput
           style={styles.freeTextInput}
           placeholder="よければ、もう少し書いてみてください"
+          placeholderTextColor={colors.textMuted}
           multiline
           value={freeText}
           onChangeText={setFreeText}
@@ -104,86 +111,84 @@ export function EmotionLogForm({
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
+    borderTopColor: colors.borderLight,
   },
   prompt: {
     fontSize: 13,
-    color: "#555",
-    marginBottom: 8,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
   },
   scoreRow: {
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 10,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   scoreButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: colors.background,
   },
   scoreButtonActive: {
-    backgroundColor: "#2563eb",
-    borderColor: "#2563eb",
+    backgroundColor: colors.primaryMuted,
+    borderColor: colors.primary,
   },
-  scoreButtonText: {
-    fontSize: 14,
-    color: "#333",
-  },
-  scoreButtonTextActive: {
-    color: "#fff",
-    fontWeight: "700",
+  scoreEmoji: {
+    fontSize: 18,
   },
   tagRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 10,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   tagChip: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 14,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
     paddingVertical: 5,
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.md,
   },
   tagChipActive: {
-    backgroundColor: "#eef2ff",
-    borderColor: "#2563eb",
+    backgroundColor: colors.primaryMuted,
+    borderColor: colors.primary,
   },
   tagChipText: {
     fontSize: 12,
-    color: "#555",
+    color: colors.textSecondary,
   },
   tagChipTextActive: {
-    color: "#2563eb",
+    color: colors.primaryDark,
     fontWeight: "600",
   },
   expandLink: {
     fontSize: 13,
-    color: "#2563eb",
-    marginBottom: 10,
+    color: colors.primary,
+    marginBottom: spacing.md,
   },
   freeTextInput: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: spacing.sm + 2,
     fontSize: 13,
     minHeight: 60,
     textAlignVertical: "top",
-    marginBottom: 10,
+    marginBottom: spacing.md,
+    backgroundColor: colors.background,
+    color: colors.textPrimary,
   },
   error: {
-    color: "#b91c1c",
+    color: colors.danger,
     fontSize: 12,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   actionRow: {
     flexDirection: "row",
@@ -192,19 +197,19 @@ const styles = StyleSheet.create({
   },
   skipLink: {
     fontSize: 13,
-    color: "#999",
+    color: colors.textMuted,
   },
   saveButton: {
-    backgroundColor: "#2563eb",
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   saveButtonDisabled: {
-    backgroundColor: "#c7d2fe",
+    opacity: 0.4,
   },
   saveButtonText: {
-    color: "#fff",
+    color: colors.white,
     fontWeight: "600",
     fontSize: 13,
   },

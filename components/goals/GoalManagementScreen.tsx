@@ -4,6 +4,7 @@ import type { GoalWithSubGoals } from "../../lib/supabase/goals";
 import { createSubGoal, renameSubGoal } from "../../lib/supabase/goals";
 import { fetchTasksForSubGoals, reassignTask } from "../../lib/supabase/tasks";
 import type { SubGoal, Task } from "../../types/database";
+import { colors, radius, shadow, spacing } from "../../lib/theme";
 
 export function GoalManagementScreen({
   goals,
@@ -78,198 +79,216 @@ export function GoalManagementScreen({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      <View style={styles.content}>
+        <TouchableOpacity onPress={onBack} style={styles.backLink}>
           <Text style={styles.navLink}>← ホームへ</Text>
         </TouchableOpacity>
         <Text style={styles.title}>目標管理</Text>
-      </View>
 
-      {error && <Text style={styles.error}>{error}</Text>}
+        {error && <Text style={styles.error}>{error}</Text>}
 
-      {goals.map((goal) => (
-        <View key={goal.id} style={styles.goalSection}>
-          <Text style={styles.goalTitle}>{goal.title}</Text>
+        {goals.map((goal) => (
+          <View key={goal.id} style={styles.goalSection}>
+            <Text style={styles.goalTitle}>{goal.title}</Text>
 
-          {goal.sub_goals.map((subGoal) => {
-            const otherSubGoals = goal.sub_goals.filter((s) => s.id !== subGoal.id);
-            const tasks = tasksBySubGoal[subGoal.id] ?? [];
-            return (
-              <View key={subGoal.id} style={styles.subGoalCard}>
-                <View style={styles.subGoalHeaderRow}>
-                  <TextInput
-                    style={styles.subGoalInput}
-                    value={draftFor(subGoal)}
-                    onChangeText={(value) =>
-                      setDrafts((prev) => ({ ...prev, [subGoal.id]: value }))
-                    }
-                    onBlur={() => handleRename(subGoal)}
-                    onSubmitEditing={() => handleRename(subGoal)}
-                  />
-                  {subGoal.is_provisional && <Text style={styles.badge}>仮</Text>}
-                </View>
-
-                {tasks.length > 0 && (
-                  <View style={styles.taskList}>
-                    {tasks.map((task) => (
-                      <View key={task.id} style={styles.taskRow}>
-                        <Text style={styles.taskText} numberOfLines={1}>
-                          {task.date}　{task.title}
-                        </Text>
-                        {otherSubGoals.length > 0 && (
-                          <View style={styles.moveRow}>
-                            {otherSubGoals.map((target) => (
-                              <TouchableOpacity
-                                key={target.id}
-                                style={styles.moveChip}
-                                onPress={() => handleMoveTask(task, target.id)}
-                              >
-                                <Text style={styles.moveChipText}>→ {target.title}</Text>
-                              </TouchableOpacity>
-                            ))}
-                          </View>
-                        )}
-                      </View>
-                    ))}
+            {goal.sub_goals.map((subGoal) => {
+              const otherSubGoals = goal.sub_goals.filter((s) => s.id !== subGoal.id);
+              const tasks = tasksBySubGoal[subGoal.id] ?? [];
+              return (
+                <View key={subGoal.id} style={styles.subGoalCard}>
+                  <View style={styles.subGoalHeaderRow}>
+                    <TextInput
+                      style={styles.subGoalInput}
+                      value={draftFor(subGoal)}
+                      onChangeText={(value) =>
+                        setDrafts((prev) => ({ ...prev, [subGoal.id]: value }))
+                      }
+                      onBlur={() => handleRename(subGoal)}
+                      onSubmitEditing={() => handleRename(subGoal)}
+                    />
+                    {subGoal.is_provisional && <Text style={styles.badge}>仮</Text>}
                   </View>
-                )}
-              </View>
-            );
-          })}
 
-          <View style={styles.addSubGoalRow}>
-            <TextInput
-              style={styles.addSubGoalInput}
-              placeholder="中目標を追加"
-              value={newSubGoalTitles[goal.id] ?? ""}
-              onChangeText={(value) =>
-                setNewSubGoalTitles((prev) => ({ ...prev, [goal.id]: value }))
-              }
-              onSubmitEditing={() => handleAddSubGoal(goal.id)}
-            />
-            <TouchableOpacity
-              style={styles.addSubGoalButton}
-              onPress={() => handleAddSubGoal(goal.id)}
-            >
-              <Text style={styles.addSubGoalButtonText}>追加</Text>
-            </TouchableOpacity>
+                  {tasks.length > 0 && (
+                    <View style={styles.taskList}>
+                      {tasks.map((task) => (
+                        <View key={task.id} style={styles.taskRow}>
+                          <Text style={styles.taskText} numberOfLines={1}>
+                            {task.date}　{task.title}
+                          </Text>
+                          {otherSubGoals.length > 0 && (
+                            <View style={styles.moveRow}>
+                              {otherSubGoals.map((target) => (
+                                <TouchableOpacity
+                                  key={target.id}
+                                  style={styles.moveChip}
+                                  onPress={() => handleMoveTask(task, target.id)}
+                                >
+                                  <Text style={styles.moveChipText}>→ {target.title}</Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                          )}
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+
+            <View style={styles.addSubGoalRow}>
+              <TextInput
+                style={styles.addSubGoalInput}
+                placeholder="中目標を追加"
+                placeholderTextColor={colors.textMuted}
+                value={newSubGoalTitles[goal.id] ?? ""}
+                onChangeText={(value) =>
+                  setNewSubGoalTitles((prev) => ({ ...prev, [goal.id]: value }))
+                }
+                onSubmitEditing={() => handleAddSubGoal(goal.id)}
+              />
+              <TouchableOpacity
+                style={styles.addSubGoalButton}
+                onPress={() => handleAddSubGoal(goal.id)}
+              >
+                <Text style={styles.addSubGoalButtonText}>追加</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      ))}
+        ))}
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flexGrow: 1,
-    padding: 20,
-    backgroundColor: "#fff",
+    padding: spacing.xl,
   },
-  header: {
-    marginBottom: 16,
+  content: {
+    width: "100%",
+    maxWidth: 640,
+    alignSelf: "center",
+  },
+  backLink: {
+    alignSelf: "flex-start",
+    marginBottom: spacing.md,
   },
   navLink: {
-    color: "#2563eb",
+    color: colors.primary,
     fontSize: 14,
-    marginBottom: 8,
+    fontWeight: "600",
   },
   title: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "700",
+    color: colors.textPrimary,
+    marginBottom: spacing.xl,
   },
   error: {
-    color: "#b91c1c",
-    marginBottom: 12,
+    color: colors.danger,
+    marginBottom: spacing.md,
   },
   goalSection: {
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
   },
   goalTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "600",
-    marginBottom: 12,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
   },
   subGoalCard: {
-    borderWidth: 1,
-    borderColor: "#eee",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.md + 2,
+    marginBottom: spacing.sm + 2,
+    ...shadow.card,
   },
   subGoalHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: spacing.sm,
   },
   subGoalInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 6,
-    padding: 8,
+    borderColor: colors.border,
+    borderRadius: radius.sm - 2,
+    padding: spacing.sm,
     fontSize: 15,
+    color: colors.textPrimary,
+    backgroundColor: colors.background,
   },
   badge: {
     fontSize: 12,
-    color: "#92400e",
-    backgroundColor: "#fef3c7",
-    borderRadius: 4,
+    color: colors.warning,
+    backgroundColor: colors.warningMuted,
+    borderRadius: radius.sm - 4,
     paddingVertical: 2,
-    paddingHorizontal: 6,
+    paddingHorizontal: spacing.sm,
+    fontWeight: "600",
   },
   taskList: {
-    marginTop: 10,
-    gap: 8,
+    marginTop: spacing.sm + 2,
+    gap: spacing.sm,
   },
   taskRow: {
     borderTopWidth: 1,
-    borderTopColor: "#f2f2f2",
-    paddingTop: 8,
+    borderTopColor: colors.borderLight,
+    paddingTop: spacing.sm,
   },
   taskText: {
     fontSize: 13,
-    color: "#333",
-    marginBottom: 4,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
   moveRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
+    gap: spacing.xs + 2,
   },
   moveChip: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 12,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
     paddingVertical: 3,
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.sm,
   },
   moveChipText: {
     fontSize: 11,
-    color: "#555",
+    color: colors.textSecondary,
   },
   addSubGoalRow: {
     flexDirection: "row",
-    gap: 8,
-    marginTop: 4,
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
   addSubGoalInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: spacing.sm + 2,
     fontSize: 14,
+    backgroundColor: colors.surface,
+    color: colors.textPrimary,
   },
   addSubGoalButton: {
-    backgroundColor: "#2563eb",
-    borderRadius: 8,
-    paddingHorizontal: 16,
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.lg,
     justifyContent: "center",
   },
   addSubGoalButtonText: {
-    color: "#fff",
+    color: colors.white,
     fontWeight: "600",
   },
 });

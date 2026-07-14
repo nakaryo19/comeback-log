@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { createGoalWithInitialTasks } from "../../lib/supabase/goals";
 import { todayDateString } from "../../lib/date";
 import { useAuth } from "../../lib/supabase/auth-context";
+import { colors, radius, shadow, spacing } from "../../lib/theme";
 
 export function OnboardingScreen({ onDone }: { onDone: () => void }) {
   const { user } = useAuth();
@@ -47,102 +48,127 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>ようこそ</Text>
-      <Text style={styles.subtitle}>まずは目標と、今日やることを教えてください</Text>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      <View style={styles.card}>
+        <Text style={styles.title}>ようこそ</Text>
+        <Text style={styles.subtitle}>まずは目標と、今日やることを教えてください</Text>
 
-      <Text style={styles.label}>大目標</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="例：公務員試験に合格する"
-        value={goalTitle}
-        onChangeText={setGoalTitle}
-      />
-
-      <Text style={styles.label}>今日やること</Text>
-      {taskTitles.map((title, index) => (
+        <Text style={styles.label}>大目標</Text>
         <TextInput
-          key={index}
           style={styles.input}
-          placeholder={`タスク${index + 1}`}
-          value={title}
-          onChangeText={(value) => updateTaskTitle(index, value)}
+          placeholder="例：公務員試験に合格する"
+          placeholderTextColor={colors.textMuted}
+          value={goalTitle}
+          onChangeText={setGoalTitle}
         />
-      ))}
 
-      <TouchableOpacity style={styles.addTaskButton} onPress={addTaskField}>
-        <Text style={styles.addTaskButtonText}>+ タスクを追加</Text>
-      </TouchableOpacity>
+        <Text style={styles.label}>今日やること</Text>
+        {taskTitles.map((title, index) => (
+          <TextInput
+            key={index}
+            style={styles.input}
+            placeholder={`タスク${index + 1}`}
+            placeholderTextColor={colors.textMuted}
+            value={title}
+            onChangeText={(value) => updateTaskTitle(index, value)}
+          />
+        ))}
 
-      {error && <Text style={styles.error}>{error}</Text>}
+        <TouchableOpacity style={styles.addTaskButton} onPress={addTaskField}>
+          <Text style={styles.addTaskButtonText}>+ タスクを追加</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.submitButton}
-        onPress={handleSubmit}
-        disabled={submitting}
-      >
-        <Text style={styles.submitButtonText}>{submitting ? "登録中..." : "はじめる"}</Text>
-      </TouchableOpacity>
+        {error && <Text style={styles.error}>{error}</Text>}
+
+        <TouchableOpacity
+          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={submitting}
+        >
+          <Text style={styles.submitButtonText}>{submitting ? "登録中..." : "はじめる"}</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flexGrow: 1,
     justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#fff",
+    padding: spacing.xl,
+  },
+  card: {
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.xxl,
+    ...shadow.card,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "700",
     textAlign: "center",
-    marginBottom: 8,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 14,
     textAlign: "center",
-    color: "#666",
-    marginBottom: 24,
+    color: colors.textMuted,
+    marginBottom: spacing.xl,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
-    color: "#333",
-    marginBottom: 6,
-    marginTop: 12,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+    marginTop: spacing.md,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     fontSize: 16,
+    color: colors.textPrimary,
+    backgroundColor: colors.background,
   },
   addTaskButton: {
     alignSelf: "flex-start",
-    marginBottom: 12,
+    marginBottom: spacing.md,
+    marginTop: spacing.xs,
   },
   addTaskButtonText: {
-    color: "#2563eb",
+    color: colors.primary,
     fontSize: 14,
+    fontWeight: "500",
   },
   error: {
-    color: "#b91c1c",
-    marginBottom: 12,
+    color: colors.danger,
+    marginBottom: spacing.md,
     textAlign: "center",
+    fontSize: 13,
   },
   submitButton: {
-    backgroundColor: "#2563eb",
-    borderRadius: 8,
-    padding: 14,
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    padding: spacing.md + 2,
     alignItems: "center",
-    marginTop: 8,
+    marginTop: spacing.sm,
+  },
+  submitButtonDisabled: {
+    opacity: 0.5,
   },
   submitButtonText: {
-    color: "#fff",
+    color: colors.white,
     fontSize: 16,
     fontWeight: "600",
   },

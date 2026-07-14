@@ -8,6 +8,7 @@ import { todayDateString } from "../../lib/date";
 import type { Task, TaskStatus } from "../../types/database";
 import { WeeklySummary } from "./WeeklySummary";
 import { EmotionLogForm } from "./EmotionLogForm";
+import { colors, radius, shadow, spacing } from "../../lib/theme";
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
   todo: "未完了",
@@ -16,6 +17,12 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
 };
 
 const STATUS_ORDER: TaskStatus[] = ["todo", "partial", "done"];
+
+const STATUS_ACTIVE_COLOR: Record<TaskStatus, string> = {
+  todo: colors.neutral,
+  partial: colors.warning,
+  done: colors.success,
+};
 
 export function HomeScreen({
   goals,
@@ -81,192 +88,217 @@ export function HomeScreen({
     }
   }
 
-  const achievementRate =
-    tasks.length === 0
-      ? null
-      : Math.round((tasks.filter((t) => t.status === "done").length / tasks.length) * 100);
-
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>今日のタスク</Text>
-        <TouchableOpacity onPress={onOpenGoalManagement}>
-          <Text style={styles.navLink}>目標管理</Text>
-        </TouchableOpacity>
-      </View>
-
-      <WeeklySummary refreshKey={summaryRefreshKey} />
-
-      {achievementRate !== null && (
-        <Text style={styles.summary}>今日の達成率：{achievementRate}%</Text>
-      )}
-
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      {loading ? (
-        <Text style={styles.empty}>読み込み中...</Text>
-      ) : tasks.length === 0 ? (
-        <Text style={styles.empty}>今日のタスクはまだありません</Text>
-      ) : (
-        tasks.map((task) => (
-          <View key={task.id} style={styles.taskCard}>
-            <View style={styles.taskTitleRow}>
-              <Text style={styles.taskTitle}>{task.title}</Text>
-              {loggedTaskIds.has(task.id) && <Text style={styles.loggedBadge}>記録済み</Text>}
-            </View>
-            <View style={styles.statusRow}>
-              {STATUS_ORDER.map((status) => (
-                <TouchableOpacity
-                  key={status}
-                  style={[
-                    styles.statusButton,
-                    task.status === status && styles.statusButtonActive,
-                  ]}
-                  onPress={() => handleStatusChange(task.id, status)}
-                >
-                  <Text
-                    style={[
-                      styles.statusButtonText,
-                      task.status === status && styles.statusButtonTextActive,
-                    ]}
-                  >
-                    {STATUS_LABEL[status]}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {emotionPromptTaskId === task.id && (
-              <EmotionLogForm
-                taskId={task.id}
-                onSaved={() => {
-                  setLoggedTaskIds((prev) => new Set(prev).add(task.id));
-                  setEmotionPromptTaskId(null);
-                  setSummaryRefreshKey((k) => k + 1);
-                }}
-                onSkip={() => setEmotionPromptTaskId(null)}
-              />
-            )}
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.eyebrow}>今日のログ</Text>
+            <Text style={styles.title}>今日のタスク</Text>
           </View>
-        ))
-      )}
+          <TouchableOpacity style={styles.navLinkButton} onPress={onOpenGoalManagement}>
+            <Text style={styles.navLink}>目標管理</Text>
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.addTaskRow}>
-        <TextInput
-          style={styles.addTaskInput}
-          placeholder="今日のタスクを追加"
-          value={newTaskTitle}
-          onChangeText={setNewTaskTitle}
-          onSubmitEditing={handleAddTask}
-        />
-        <TouchableOpacity style={styles.addTaskButton} onPress={handleAddTask}>
-          <Text style={styles.addTaskButtonText}>追加</Text>
-        </TouchableOpacity>
+        <WeeklySummary refreshKey={summaryRefreshKey} />
+
+        {error && <Text style={styles.error}>{error}</Text>}
+
+        {loading ? (
+          <Text style={styles.empty}>読み込み中...</Text>
+        ) : tasks.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.empty}>今日のタスクはまだありません</Text>
+          </View>
+        ) : (
+          tasks.map((task) => (
+            <View key={task.id} style={styles.taskCard}>
+              <View style={styles.taskTitleRow}>
+                <Text style={styles.taskTitle}>{task.title}</Text>
+                {loggedTaskIds.has(task.id) && <Text style={styles.loggedBadge}>記録済み</Text>}
+              </View>
+              <View style={styles.statusRow}>
+                {STATUS_ORDER.map((status) => {
+                  const active = task.status === status;
+                  const activeColor = STATUS_ACTIVE_COLOR[status];
+                  return (
+                    <TouchableOpacity
+                      key={status}
+                      style={[
+                        styles.statusButton,
+                        active && { backgroundColor: activeColor, borderColor: activeColor },
+                      ]}
+                      onPress={() => handleStatusChange(task.id, status)}
+                    >
+                      <Text style={[styles.statusButtonText, active && styles.statusButtonTextActive]}>
+                        {STATUS_LABEL[status]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {emotionPromptTaskId === task.id && (
+                <EmotionLogForm
+                  taskId={task.id}
+                  onSaved={() => {
+                    setLoggedTaskIds((prev) => new Set(prev).add(task.id));
+                    setEmotionPromptTaskId(null);
+                    setSummaryRefreshKey((k) => k + 1);
+                  }}
+                  onSkip={() => setEmotionPromptTaskId(null)}
+                />
+              )}
+            </View>
+          ))
+        )}
+
+        <View style={styles.addTaskRow}>
+          <TextInput
+            style={styles.addTaskInput}
+            placeholder="今日のタスクを追加"
+            placeholderTextColor={colors.textMuted}
+            value={newTaskTitle}
+            onChangeText={setNewTaskTitle}
+            onSubmitEditing={handleAddTask}
+          />
+          <TouchableOpacity style={styles.addTaskButton} onPress={handleAddTask}>
+            <Text style={styles.addTaskButtonText}>追加</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flexGrow: 1,
-    padding: 20,
-    backgroundColor: "#fff",
+    padding: spacing.xl,
+  },
+  content: {
+    width: "100%",
+    maxWidth: 640,
+    alignSelf: "center",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
+    alignItems: "flex-start",
+    marginBottom: spacing.lg,
+  },
+  eyebrow: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 2,
   },
   title: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  navLinkButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.xs,
   },
   navLink: {
-    color: "#2563eb",
-    fontSize: 14,
-  },
-  summary: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 16,
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "600",
   },
   error: {
-    color: "#b91c1c",
-    marginBottom: 12,
+    color: colors.danger,
+    marginBottom: spacing.md,
   },
   empty: {
-    color: "#888",
-    marginTop: 24,
+    color: colors.textMuted,
     textAlign: "center",
   },
-  taskCard: {
+  emptyCard: {
     borderWidth: 1,
-    borderColor: "#eee",
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
+    borderColor: colors.borderLight,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.xxl,
+    marginBottom: spacing.md,
+  },
+  taskCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadow.card,
   },
   taskTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   taskTitle: {
     fontSize: 16,
+    color: colors.textPrimary,
+    fontWeight: "500",
   },
   loggedBadge: {
     fontSize: 11,
-    color: "#059669",
-    backgroundColor: "#ecfdf5",
-    borderRadius: 4,
+    color: colors.success,
+    backgroundColor: colors.successMuted,
+    borderRadius: radius.sm - 4,
     paddingVertical: 2,
-    paddingHorizontal: 6,
+    paddingHorizontal: spacing.sm,
+    fontWeight: "600",
   },
   statusRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: spacing.sm,
   },
   statusButton: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-  },
-  statusButtonActive: {
-    backgroundColor: "#2563eb",
-    borderColor: "#2563eb",
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.sm - 2,
+    paddingHorizontal: spacing.md,
   },
   statusButtonText: {
     fontSize: 13,
-    color: "#333",
+    color: colors.textSecondary,
+    fontWeight: "500",
   },
   statusButtonTextActive: {
-    color: "#fff",
+    color: colors.white,
   },
   addTaskRow: {
     flexDirection: "row",
-    gap: 8,
-    marginTop: 20,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
   addTaskInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: spacing.md,
     fontSize: 15,
+    backgroundColor: colors.surface,
+    color: colors.textPrimary,
   },
   addTaskButton: {
-    backgroundColor: "#2563eb",
-    borderRadius: 8,
-    paddingHorizontal: 18,
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.lg,
     justifyContent: "center",
   },
   addTaskButtonText: {
-    color: "#fff",
+    color: colors.white,
     fontWeight: "600",
   },
 });
