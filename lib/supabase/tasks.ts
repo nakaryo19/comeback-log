@@ -12,6 +12,21 @@ export async function fetchTasksForDate(date: ISODateString): Promise<Task[]> {
   return data ?? [];
 }
 
+/** 期間内（開始日〜終了日、両端含む）のタスクを取得する（週次サマリー用） */
+export async function fetchTasksForDateRange(
+  start: ISODateString,
+  end: ISODateString,
+): Promise<Task[]> {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .gte("date", start)
+    .lte("date", end)
+    .order("date", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
 /** 中目標配下のタスクを取得する（目標管理画面用） */
 export async function fetchTasksForSubGoals(subGoalIds: UUID[]): Promise<Task[]> {
   if (subGoalIds.length === 0) return [];

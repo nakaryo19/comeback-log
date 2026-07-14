@@ -5,6 +5,7 @@ import { findDefaultSubGoalId } from "../../lib/supabase/goals";
 import { createTask, fetchTasksForDate, updateTaskStatus } from "../../lib/supabase/tasks";
 import { todayDateString } from "../../lib/date";
 import type { Task, TaskStatus } from "../../types/database";
+import { WeeklySummary } from "./WeeklySummary";
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
   todo: "未完了",
@@ -80,6 +81,8 @@ export function HomeScreen({
           <Text style={styles.navLink}>目標管理</Text>
         </TouchableOpacity>
       </View>
+
+      <WeeklySummary />
 
       {achievementRate !== null && (
         <Text style={styles.summary}>今日の達成率：{achievementRate}%</Text>
