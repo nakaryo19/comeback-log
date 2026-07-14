@@ -4,7 +4,7 @@ import { currentWeekDateRange } from "../../lib/date";
 import { fetchEmotionScoresForTasks } from "../../lib/supabase/emotionLogs";
 import { fetchTasksForDateRange } from "../../lib/supabase/tasks";
 
-export function WeeklySummary() {
+export function WeeklySummary({ refreshKey }: { refreshKey?: unknown }) {
   const [achievementRate, setAchievementRate] = useState<number | null>(null);
   const [averageScore, setAverageScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,7 +35,7 @@ export function WeeklySummary() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshKey]);
 
   if (loading) return null;
 

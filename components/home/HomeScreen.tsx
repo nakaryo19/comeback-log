@@ -3,9 +3,11 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import type { GoalWithSubGoals } from "../../lib/supabase/goals";
 import { findDefaultSubGoalId } from "../../lib/supabase/goals";
 import { createTask, fetchTasksForDate, updateTaskStatus } from "../../lib/supabase/tasks";
+import { fetchLoggedTaskIds } from "../../lib/supabase/emotionLogs";
 import { todayDateString } from "../../lib/date";
 import type { Task, TaskStatus } from "../../types/database";
 import { WeeklySummary } from "./WeeklySummary";
+import { EmotionLogForm } from "./EmotionLogForm";
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
   todo: "未完了",
@@ -23,9 +25,12 @@ export function HomeScreen({
   onOpenGoalManagement: () => void;
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [loggedTaskIds, setLoggedTaskIds] = useState<Set<string>>(new Set());
+  const [emotionPromptTaskId, setEmotionPromptTaskId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [summaryRefreshKey, setSummaryRefreshKey] = useState(0);
 
   const today = todayDateString();
   const defaultSubGoalId = findDefaultSubGoalId(goals);
@@ -33,7 +38,9 @@ export function HomeScreen({
   const loadTasks = useCallback(async () => {
     setLoading(true);
     try {
-      setTasks(await fetchTasksForDate(today));
+      const fetchedTasks = await fetchTasksForDate(today);
+      setTasks(fetchedTasks);
+      setLoggedTaskIds(await fetchLoggedTaskIds(fetchedTasks.map((t) => t.id)));
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "タスクの取得に失敗しました。");
@@ -50,6 +57,12 @@ export function HomeScreen({
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
     try {
       await updateTaskStatus(taskId, status);
+      setSummaryRefreshKey((k) => k + 1);
+      if (status === "done" && !loggedTaskIds.has(taskId)) {
+        setEmotionPromptTaskId(taskId);
+      } else if (emotionPromptTaskId === taskId) {
+        setEmotionPromptTaskId(null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "更新に失敗しました。");
       loadTasks();
@@ -82,7 +95,7 @@ export function HomeScreen({
         </TouchableOpacity>
       </View>
 
-      <WeeklySummary />
+      <WeeklySummary refreshKey={summaryRefreshKey} />
 
       {achievementRate !== null && (
         <Text style={styles.summary}>今日の達成率：{achievementRate}%</Text>
@@ -97,7 +110,10 @@ export function HomeScreen({
       ) : (
         tasks.map((task) => (
           <View key={task.id} style={styles.taskCard}>
-            <Text style={styles.taskTitle}>{task.title}</Text>
+            <View style={styles.taskTitleRow}>
+              <Text style={styles.taskTitle}>{task.title}</Text>
+              {loggedTaskIds.has(task.id) && <Text style={styles.loggedBadge}>記録済み</Text>}
+            </View>
             <View style={styles.statusRow}>
               {STATUS_ORDER.map((status) => (
                 <TouchableOpacity
@@ -119,6 +135,17 @@ export function HomeScreen({
                 </TouchableOpacity>
               ))}
             </View>
+            {emotionPromptTaskId === task.id && (
+              <EmotionLogForm
+                taskId={task.id}
+                onSaved={() => {
+                  setLoggedTaskIds((prev) => new Set(prev).add(task.id));
+                  setEmotionPromptTaskId(null);
+                  setSummaryRefreshKey((k) => k + 1);
+                }}
+                onSkip={() => setEmotionPromptTaskId(null)}
+              />
+            )}
           </View>
         ))
       )}
@@ -180,9 +207,22 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
   },
+  taskTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
   taskTitle: {
     fontSize: 16,
-    marginBottom: 10,
+  },
+  loggedBadge: {
+    fontSize: 11,
+    color: "#059669",
+    backgroundColor: "#ecfdf5",
+    borderRadius: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
   },
   statusRow: {
     flexDirection: "row",
