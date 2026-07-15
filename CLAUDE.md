@@ -38,19 +38,17 @@
 
 ## よく使うコマンド
 
-> 実際にプロジェクトを `npx create-expo-app` 等で初期化した後、このセクションを具体的なコマンドで更新すること。
-
 ```bash
-# 開発サーバー起動（予定）
-npx expo start
+# 開発サーバー起動
+npm run start
 
-# Web版の起動（予定）
-npx expo start --web
+# Web版の起動
+npm run web
 
-# Lint（予定）
+# Lint（expo lint / ESLint flat config）
 npm run lint
 
-# 型チェック（予定、TypeScript採用時）
+# 型チェック（tsc --noEmit）
 npm run typecheck
 ```
 
@@ -108,4 +106,7 @@ PublicProfile（任意公開・デフォルト非公開）
 
 ## コーディング規約
 
-> プロジェクト初期化後、Lintツール・フォーマッタ（ESLint / Prettier等）を導入し次第このセクションを更新すること。
+- ESLint を導入済み（`eslint.config.js`、`eslint-config-expo` ベースの flat config）。コミット前に `npm run lint` と `npm run typecheck` を通すこと。
+- `react-hooks/set-state-in-effect` は既存のマウント時データ取得パターンを許容するため warn に下げている。新規コードでは極力このパターンを増やさないこと。
+- CI（GitHub Actions: `.github/workflows/ci.yml`）が `main` への push / PR で Lint と型チェックを実行する。
+- フォーマッタ（Prettier）は未導入。導入し次第このセクションを更新すること。
