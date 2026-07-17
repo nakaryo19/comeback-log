@@ -50,6 +50,12 @@ npm run lint
 
 # 型チェック（tsc --noEmit）
 npm run typecheck
+
+# テスト（jest-expo + React Native Testing Library）
+npm test
+
+# テスト（ウォッチモード）
+npm run test:watch
 ```
 
 ## ディレクトリ構成（予定）
@@ -108,5 +114,8 @@ PublicProfile（任意公開・デフォルト非公開）
 
 - ESLint を導入済み（`eslint.config.js`、`eslint-config-expo` ベースの flat config）。コミット前に `npm run lint` と `npm run typecheck` を通すこと。
 - `react-hooks/set-state-in-effect` は既存のマウント時データ取得パターンを許容するため warn に下げている。新規コードでは極力このパターンを増やさないこと。
-- CI（GitHub Actions: `.github/workflows/ci.yml`）が `main` への push / PR で Lint と型チェックを実行する。
+- CI（GitHub Actions: `.github/workflows/ci.yml`）が `main` への push / PR で Lint・型チェック・テストを実行する。
+- テストは jest-expo + React Native Testing Library（v14、`render`/`fireEvent` は async）。テストファイルは
+  対象の隣の `__tests__/` に `*-test.ts(x)` として置く。Supabase に依存するモジュールはテストで
+  `jest.mock` すること（実クライアントは環境変数必須のため、テストから import してはならない）。
 - フォーマッタ（Prettier）は未導入。導入し次第このセクションを更新すること。
