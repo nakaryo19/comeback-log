@@ -1,0 +1,51 @@
+# Supabase 無料枠の自動一時停止を防ぐための定期 ping。
+#
+# 無料プランのプロジェクトは、7日間「十分なユーザーDB活動」がないと一時停止される。
+# ここでは RLS 配下のテーブルに匿名キーで問い合わせることで、
+# 「DBクエリは実行されるが、データは1行も返らない」状態を作って活動だけを記録させる。
+# 感情ログ（emotion_logs）には一切アクセスしない。
+#
+# 注意：publicリポジトリでは、リポジトリに60日間活動がないと
+# スケジュールワークフローがGitHubにより自動で無効化される。
+# 長期間開発を離れる場合は、Actionsタブから再有効化すること。
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    # 毎日 02:17 UTC（毎時0分前後は混雑して遅延しやすいため、時刻をずらしている）
+    - cron: "17 2 * * *"
+  # 手動実行での動作確認用
+  workflow_dispatch:
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::シークレット SUPABASE_URL / SUPABASE_ANON_KEY が未設定です。"
+            exit 1
+          fi
+
+          # RLSにより匿名ユーザーには0行しか返らない。応答は 200 と空配列 [] を期待する。
+          http_status=$(curl -sS -o /dev/null -w '%{http_code}' \
+            --max-time 30 --retry 2 --retry-delay 10 \
+            "${SUPABASE_URL}/rest/v1/goals?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+
+          echo "HTTP status: ${http_status}"
+          if [ "$http_status" != "200" ]; then
+            echo "::error::Supabase への ping に失敗しました（HTTP ${http_status}）。プロジェクトが停止済みか、キーが失効している可能性があります。"
+            exit 1
+          fi
+          echo "Supabase は稼働中です。"
