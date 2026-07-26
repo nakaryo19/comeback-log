@@ -19,6 +19,8 @@ export type Goal = {
   id: UUID;
   user_id: UUID;
   title: string;
+  /** 達成した日時。null は未達成。タスクの完了状況とは連動せず、手動でのみ設定する */
+  achieved_at: ISODateTimeString | null;
   created_at: ISODateTimeString;
   updated_at: ISODateTimeString;
 };
@@ -29,6 +31,8 @@ export type SubGoal = {
   title: string;
   /** 初回登録時に自動生成される「仮の中目標」かどうか */
   is_provisional: boolean;
+  /** 達成した日時。null は未達成。タスクの完了状況とは連動せず、手動でのみ設定する */
+  achieved_at: ISODateTimeString | null;
   created_at: ISODateTimeString;
   updated_at: ISODateTimeString;
 };
@@ -76,15 +80,15 @@ export interface Database {
     Tables: {
       goals: {
         Row: Goal;
-        Insert: Omit<Goal, "id" | "created_at" | "updated_at"> &
-          Partial<Pick<Goal, "id" | "created_at" | "updated_at">>;
+        Insert: Omit<Goal, "id" | "created_at" | "updated_at" | "achieved_at"> &
+          Partial<Pick<Goal, "id" | "created_at" | "updated_at" | "achieved_at">>;
         Update: Partial<Omit<Goal, "id">>;
         Relationships: [];
       };
       sub_goals: {
         Row: SubGoal;
-        Insert: Omit<SubGoal, "id" | "created_at" | "updated_at"> &
-          Partial<Pick<SubGoal, "id" | "created_at" | "updated_at">>;
+        Insert: Omit<SubGoal, "id" | "created_at" | "updated_at" | "achieved_at"> &
+          Partial<Pick<SubGoal, "id" | "created_at" | "updated_at" | "achieved_at">>;
         Update: Partial<Omit<SubGoal, "id">>;
         Relationships: [];
       };

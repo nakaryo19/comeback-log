@@ -5,6 +5,8 @@ import {
   deleteGoal,
   deleteSubGoal,
   renameGoal,
+  setGoalAchieved,
+  setSubGoalAchieved,
   type GoalWithSubGoals,
 } from "../../../lib/supabase/goals";
 import {
@@ -24,6 +26,8 @@ jest.mock("../../../lib/supabase/goals", () => ({
   renameSubGoal: jest.fn(),
   deleteGoal: jest.fn(),
   deleteSubGoal: jest.fn(),
+  setGoalAchieved: jest.fn(),
+  setSubGoalAchieved: jest.fn(),
 }));
 jest.mock("../../../lib/supabase/tasks", () => ({
   fetchTasksForSubGoals: jest.fn(),
@@ -57,6 +61,10 @@ const mockTaskCounts = fetchTaskCountsBySubGoal as jest.MockedFunction<
 const mockFetchTasksForSubGoal = fetchTasksForSubGoal as jest.MockedFunction<
   typeof fetchTasksForSubGoal
 >;
+const mockSetGoalAchieved = setGoalAchieved as jest.MockedFunction<typeof setGoalAchieved>;
+const mockSetSubGoalAchieved = setSubGoalAchieved as jest.MockedFunction<
+  typeof setSubGoalAchieved
+>;
 
 function makeSubGoal(id: string, goalId: string, title: string): SubGoal {
   return {
@@ -64,6 +72,7 @@ function makeSubGoal(id: string, goalId: string, title: string): SubGoal {
     goal_id: goalId,
     title,
     is_provisional: true,
+    achieved_at: null,
     created_at: "2026-07-01T00:00:00Z",
     updated_at: "2026-07-01T00:00:00Z",
   };
@@ -74,6 +83,7 @@ function makeGoal(id: string, title: string): GoalWithSubGoals {
     id,
     user_id: "u-1",
     title,
+    achieved_at: null,
     created_at: "2026-07-01T00:00:00Z",
     updated_at: "2026-07-01T00:00:00Z",
     sub_goals: [makeSubGoal(`sg-${id}`, id, "ステップ1")],
@@ -95,6 +105,8 @@ beforeEach(() => {
   mockFetchTaskIds.mockResolvedValue([]);
   mockTaskCounts.mockResolvedValue({});
   mockFetchTasksForSubGoal.mockResolvedValue([]);
+  mockSetGoalAchieved.mockResolvedValue(undefined);
+  mockSetSubGoalAchieved.mockResolvedValue(undefined);
   mockCountEmotionLogs.mockResolvedValue(0);
   mockDeleteGoal.mockResolvedValue(undefined);
   mockDeleteSubGoal.mockResolvedValue(undefined);
@@ -305,5 +317,83 @@ describe("<GoalManagementScreen /> タスクの表示件数", () => {
     // 詳細画面に切り替わり、目標管理の見出しが消える
     expect(await screen.findByText("← 目標管理へ")).toBeTruthy();
     expect(screen.queryByText("目標管理")).toBeNull();
+  });
+});
+
+describe("<GoalManagementScreen /> 目標の達成", () => {
+  test("大目標を達成にできる", async () => {
+    const { onGoalsChanged } = await renderScreen([makeGoal("g-1", "公務員試験に合格する")]);
+
+    await fireEvent.press(screen.getByLabelText("大目標「公務員試験に合格する」を達成にする"));
+
+    expect(mockSetGoalAchieved).toHaveBeenCalledWith("g-1", true);
+    expect(onGoalsChanged).toHaveBeenCalled();
+  });
+
+  test("達成済みの大目標は取り消せる", async () => {
+    const achieved: GoalWithSubGoals = {
+      ...makeGoal("g-1", "公務員試験に合格する"),
+      achieved_at: "2026-07-26T00:00:00Z",
+    };
+    await renderScreen([achieved]);
+
+    await fireEvent.press(screen.getByText("達成した大目標（1件） ▼"));
+    await fireEvent.press(
+      screen.getByLabelText("大目標「公務員試験に合格する」の達成を取り消す"),
+    );
+
+    expect(mockSetGoalAchieved).toHaveBeenCalledWith("g-1", false);
+  });
+
+  test("中目標も達成にできる", async () => {
+    await renderScreen([makeGoal("g-1", "公務員試験に合格する")]);
+
+    await fireEvent.press(screen.getByLabelText("中目標「ステップ1」を達成にする"));
+
+    expect(mockSetSubGoalAchieved).toHaveBeenCalledWith("sg-g-1", true);
+  });
+
+  test("達成済みの大目標は既定で折りたたまれ、進行中と分けて表示される", async () => {
+    const achieved: GoalWithSubGoals = {
+      ...makeGoal("g-2", "AWS認定資格を取得する"),
+      achieved_at: "2026-07-20T00:00:00Z",
+    };
+    await renderScreen([makeGoal("g-1", "公務員試験に合格する"), achieved]);
+
+    // 進行中は見える
+    expect(screen.getByDisplayValue("公務員試験に合格する")).toBeTruthy();
+    // 達成済みは折りたたまれている
+    expect(screen.queryByDisplayValue("AWS認定資格を取得する")).toBeNull();
+    expect(screen.getByText("達成した大目標（1件） ▼")).toBeTruthy();
+  });
+
+  test("折りたたみを開くと達成済みの大目標と達成日が見える", async () => {
+    const achieved: GoalWithSubGoals = {
+      ...makeGoal("g-2", "AWS認定資格を取得する"),
+      achieved_at: "2026-07-20T00:00:00Z",
+    };
+    await renderScreen([achieved]);
+
+    await fireEvent.press(screen.getByText("達成した大目標（1件） ▼"));
+
+    expect(screen.getByDisplayValue("AWS認定資格を取得する")).toBeTruthy();
+    expect(screen.getByText("✓ 7/20 に達成")).toBeTruthy();
+  });
+
+  test("達成済みの中目標は末尾に回る", async () => {
+    const goal: GoalWithSubGoals = {
+      ...makeGoal("g-1", "公務員試験に合格する"),
+      sub_goals: [
+        { ...makeSubGoal("sg-1", "g-1", "済んだ対策"), achieved_at: "2026-07-20T00:00:00Z" },
+        makeSubGoal("sg-2", "g-1", "進行中A"),
+        makeSubGoal("sg-3", "g-1", "進行中B"),
+        makeSubGoal("sg-4", "g-1", "進行中C"),
+      ],
+    };
+    await renderScreen([goal]);
+
+    // 先頭3件は進行中で埋まり、達成済みは既定表示から外れる
+    expect(screen.getByDisplayValue("進行中C")).toBeTruthy();
+    expect(screen.queryByDisplayValue("済んだ対策")).toBeNull();
   });
 });

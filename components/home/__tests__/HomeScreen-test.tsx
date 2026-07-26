@@ -61,6 +61,7 @@ const goals: GoalWithSubGoals[] = [
     id: "g-1",
     user_id: "u-1",
     title: "公務員試験に合格する",
+    achieved_at: null,
     created_at: "2026-07-01T00:00:00Z",
     updated_at: "2026-07-01T00:00:00Z",
     sub_goals: [],
@@ -82,6 +83,7 @@ function makeSubGoal(id: string, title: string, isProvisional = false): SubGoal 
     goal_id: "g-1",
     title,
     is_provisional: isProvisional,
+    achieved_at: null,
     created_at: "2026-07-01T00:00:00Z",
     updated_at: "2026-07-01T00:00:00Z",
   };
