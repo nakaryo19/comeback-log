@@ -68,6 +68,33 @@ export async function createGoalWithInitialTasks(params: {
   if (tasksError) throw tasksError;
 }
 
+/**
+ * 2つ目以降の大目標を追加する。
+ * オンボーディングと同様に「仮の中目標」を自動生成する。
+ * データ構造上は常に3階層を維持する必要があり（要件定義書 4-1）、
+ * 中目標が無い大目標にはタスクを紐付けられないため。
+ */
+export async function createGoal(userId: UUID, title: string): Promise<Goal> {
+  const { data: goal, error: goalError } = await supabase
+    .from("goals")
+    .insert({ user_id: userId, title })
+    .select()
+    .single();
+  if (goalError) throw goalError;
+
+  const { error: subGoalError } = await supabase
+    .from("sub_goals")
+    .insert({ goal_id: goal.id, title: "ステップ1", is_provisional: true });
+  if (subGoalError) throw subGoalError;
+
+  return goal;
+}
+
+export async function renameGoal(goalId: UUID, title: string): Promise<void> {
+  const { error } = await supabase.from("goals").update({ title }).eq("id", goalId);
+  if (error) throw error;
+}
+
 /** 中目標の名前を変更する。命名により「仮の中目標」ではなくなる */
 export async function renameSubGoal(subGoalId: UUID, title: string): Promise<void> {
   const { error } = await supabase

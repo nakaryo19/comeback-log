@@ -88,8 +88,8 @@ comeback-log/
 
 ```
 User
- └─ Goal（大目標）
-     └─ SubGoal（中目標・初回登録時は自動生成される「仮の中目標」を含む）
+ └─ Goal（大目標・複数可。並行する目標を分けて管理できる）
+     └─ SubGoal（中目標・初回登録時や大目標の追加時に自動生成される「仮の中目標」を含む）
          └─ Task（日次タスク：status, date）
 
 EmotionLog
