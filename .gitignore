@@ -3,6 +3,9 @@
 # dependencies
 node_modules/
 
+# Claude Code（個人用の設定。承認モード等はリポジトリで共有しない）
+.claude/settings.local.json
+
 # Expo
 .expo/
 dist/
