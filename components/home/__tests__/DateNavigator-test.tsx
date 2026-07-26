@@ -26,16 +26,27 @@ describe("<DateNavigator />", () => {
     expect(onChangeDate).toHaveBeenCalledWith("2026-07-25");
   });
 
-  test("過去日では「翌日」で1日後の日付を通知する", async () => {
+  test("「翌日」で1日後の日付を通知する", async () => {
     const { onChangeDate } = await setup("2026-07-24");
     await fireEvent.press(screen.getByLabelText("翌日"));
     expect(onChangeDate).toHaveBeenCalledWith("2026-07-25");
   });
 
-  test("今日を表示中は「翌日」を押しても未来へ進まない", async () => {
+  test("今日からでも未来へ進める（先の予定を登録するため）", async () => {
     const { onChangeDate } = await setup(TODAY);
     await fireEvent.press(screen.getByLabelText("翌日"));
-    expect(onChangeDate).not.toHaveBeenCalled();
+    expect(onChangeDate).toHaveBeenCalledWith("2026-07-27");
+  });
+
+  test("未来日では「明日」の相対ラベルを添える", async () => {
+    await setup("2026-07-27");
+    expect(screen.getByText("明日")).toBeTruthy();
+  });
+
+  test("未来日からも「今日へ戻る」で今日に戻せる", async () => {
+    const { onChangeDate } = await setup("2026-08-15");
+    await fireEvent.press(screen.getByText("今日へ戻る"));
+    expect(onChangeDate).toHaveBeenCalledWith(TODAY);
   });
 
   test("今日を表示中は「今日へ戻る」を出さない", async () => {

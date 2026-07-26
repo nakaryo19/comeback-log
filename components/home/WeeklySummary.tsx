@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { currentWeekDateRange } from "../../lib/date";
+import { currentWeekDateRange, todayDateString } from "../../lib/date";
 import { fetchEmotionScoresForTasks } from "../../lib/supabase/emotionLogs";
 import { fetchTasksForDateRange } from "../../lib/supabase/tasks";
 import { colors, radius, shadow, spacing } from "../../lib/theme";
@@ -15,9 +15,14 @@ export function WeeklySummary({ refreshKey }: { refreshKey?: unknown }) {
 
     async function load() {
       const { start, end } = currentWeekDateRange();
-      const tasks = await fetchTasksForDateRange(start, end);
-      const scores = await fetchEmotionScoresForTasks(tasks.map((t) => t.id));
+      const allTasks = await fetchTasksForDateRange(start, end);
+      const scores = await fetchEmotionScoresForTasks(allTasks.map((t) => t.id));
       if (cancelled) return;
+
+      // まだ来ていない日の予定は達成率の分母に入れない。
+      // 先の予定を登録した瞬間に達成率が下がると、記録すること自体が罰になってしまうため。
+      const today = todayDateString();
+      const tasks = allTasks.filter((t) => t.date <= today);
 
       setAchievementRate(
         tasks.length === 0

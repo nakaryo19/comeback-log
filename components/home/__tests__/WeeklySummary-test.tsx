@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react-native";
 import { WeeklySummary } from "../WeeklySummary";
+import { shiftDateString, todayDateString } from "../../../lib/date";
 import { fetchTasksForDateRange } from "../../../lib/supabase/tasks";
 import { fetchEmotionScoresForTasks } from "../../../lib/supabase/emotionLogs";
 import type { EmotionScore, Task, TaskStatus } from "../../../types/database";
@@ -66,5 +67,40 @@ describe("<WeeklySummary />", () => {
     await setup([makeTask("t1", "todo")], []);
     await screen.findByText("0%");
     await screen.findByText("－");
+  });
+});
+
+describe("<WeeklySummary /> 先の予定の扱い", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test("まだ来ていない日の予定は達成率の分母に入れない", async () => {
+    const today = todayDateString();
+    const future = shiftDateString(today, 3);
+    await setup(
+      [
+        { ...makeTask("t1", "done"), date: today },
+        { ...makeTask("t2", "todo"), date: future },
+        { ...makeTask("t3", "todo"), date: future },
+      ],
+      [],
+    );
+
+    // 未来の2件を除いた 1/1 = 100%（分母に入れていれば 33%）
+    await screen.findByText("100%");
+  });
+
+  test("過去・当日の予定は従来通り分母に入れる", async () => {
+    const today = todayDateString();
+    await setup(
+      [
+        { ...makeTask("t1", "done"), date: shiftDateString(today, -1) },
+        { ...makeTask("t2", "todo"), date: today },
+      ],
+      [],
+    );
+
+    await screen.findByText("50%");
   });
 });
