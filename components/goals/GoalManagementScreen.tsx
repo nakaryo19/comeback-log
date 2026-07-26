@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import type { GoalWithSubGoals } from "../../lib/supabase/goals";
-import { createSubGoal, renameSubGoal } from "../../lib/supabase/goals";
+import { createGoal, createSubGoal, renameGoal, renameSubGoal } from "../../lib/supabase/goals";
 import { fetchTasksForSubGoals, reassignTask } from "../../lib/supabase/tasks";
+import { useAuth } from "../../lib/supabase/auth-context";
 import type { SubGoal, Task } from "../../types/database";
 import { colors, radius, shadow, spacing } from "../../lib/theme";
 
@@ -15,9 +16,12 @@ export function GoalManagementScreen({
   onBack: () => void;
   onGoalsChanged: () => void;
 }) {
+  const { user } = useAuth();
   const [tasksBySubGoal, setTasksBySubGoal] = useState<Record<string, Task[]>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [goalDrafts, setGoalDrafts] = useState<Record<string, string>>({});
   const [newSubGoalTitles, setNewSubGoalTitles] = useState<Record<string, string>>({});
+  const [newGoalTitle, setNewGoalTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const allSubGoalIds = useMemo(
@@ -49,6 +53,33 @@ export function GoalManagementScreen({
       onGoalsChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : "中目標の更新に失敗しました。");
+    }
+  }
+
+  function goalDraftFor(goal: GoalWithSubGoals): string {
+    return goalDrafts[goal.id] ?? goal.title;
+  }
+
+  async function handleRenameGoal(goal: GoalWithSubGoals) {
+    const title = goalDraftFor(goal).trim();
+    if (!title || title === goal.title) return;
+    try {
+      await renameGoal(goal.id, title);
+      onGoalsChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "大目標の更新に失敗しました。");
+    }
+  }
+
+  async function handleAddGoal() {
+    const title = newGoalTitle.trim();
+    if (!title || !user) return;
+    try {
+      await createGoal(user.id, title);
+      setNewGoalTitle("");
+      onGoalsChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "大目標の追加に失敗しました。");
     }
   }
 
@@ -90,7 +121,14 @@ export function GoalManagementScreen({
 
         {goals.map((goal) => (
           <View key={goal.id} style={styles.goalSection}>
-            <Text style={styles.goalTitle}>{goal.title}</Text>
+            <TextInput
+              style={styles.goalTitleInput}
+              value={goalDraftFor(goal)}
+              accessibilityLabel="大目標"
+              onChangeText={(value) => setGoalDrafts((prev) => ({ ...prev, [goal.id]: value }))}
+              onBlur={() => handleRenameGoal(goal)}
+              onSubmitEditing={() => handleRenameGoal(goal)}
+            />
 
             {goal.sub_goals.map((subGoal) => {
               const otherSubGoals = goal.sub_goals.filter((s) => s.id !== subGoal.id);
@@ -158,6 +196,31 @@ export function GoalManagementScreen({
             </View>
           </View>
         ))}
+
+        <View style={styles.addGoalCard}>
+          <Text style={styles.addGoalLabel}>大目標を追加</Text>
+          <Text style={styles.addGoalHint}>
+            並行して追いかけている目標は、分けて管理できます
+          </Text>
+          <View style={styles.addGoalRow}>
+            <TextInput
+              style={styles.addGoalInput}
+              placeholder="例：AWS認定資格を取得する"
+              placeholderTextColor={colors.textMuted}
+              value={newGoalTitle}
+              onChangeText={setNewGoalTitle}
+              onSubmitEditing={handleAddGoal}
+            />
+            <TouchableOpacity
+              style={styles.addSubGoalButton}
+              accessibilityRole="button"
+              accessibilityLabel="大目標を追加する"
+              onPress={handleAddGoal}
+            >
+              <Text style={styles.addSubGoalButtonText}>追加</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     </ScrollView>
   );
@@ -199,11 +262,45 @@ const styles = StyleSheet.create({
   goalSection: {
     marginBottom: spacing.xxl,
   },
-  goalTitle: {
+  goalTitleInput: {
     fontSize: 17,
     fontWeight: "600",
     color: colors.textPrimary,
     marginBottom: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  addGoalCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: "dashed",
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.xxl,
+  },
+  addGoalLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  addGoalHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: spacing.md,
+  },
+  addGoalRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  addGoalInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: spacing.sm + 2,
+    fontSize: 14,
+    backgroundColor: colors.surface,
+    color: colors.textPrimary,
   },
   subGoalCard: {
     backgroundColor: colors.surface,
