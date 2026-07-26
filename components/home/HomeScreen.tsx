@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import type { GoalWithSubGoals } from "../../lib/supabase/goals";
 import { findDefaultSubGoalId } from "../../lib/supabase/goals";
@@ -49,11 +49,31 @@ export function HomeScreen({
   const [editingTitle, setEditingTitle] = useState("");
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
+  const [selectedSubGoalId, setSelectedSubGoalId] = useState<string | null>(null);
+
   const today = todayDateString();
   const [selectedDate, setSelectedDate] = useState<ISODateString>(today);
   const isToday = selectedDate === today;
   const dateLabel = isToday ? "今日" : formatShortDate(selectedDate);
   const defaultSubGoalId = findDefaultSubGoalId(goals);
+
+  // 大目標が複数ある場合のみ「大目標 / 中目標」と表示して区別できるようにする
+  const subGoalOptions = useMemo(
+    () =>
+      goals.flatMap((goal) =>
+        goal.sub_goals.map((subGoal) => ({
+          id: subGoal.id,
+          label: goals.length > 1 ? `${goal.title} / ${subGoal.title}` : subGoal.title,
+        })),
+      ),
+    [goals],
+  );
+
+  // 未選択、または選択中の中目標が消えた場合は「直近の仮中目標」に自動割り当てする（要件定義書 4-1）
+  const targetSubGoalId =
+    selectedSubGoalId && subGoalOptions.some((o) => o.id === selectedSubGoalId)
+      ? selectedSubGoalId
+      : defaultSubGoalId;
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
@@ -133,9 +153,9 @@ export function HomeScreen({
 
   async function handleAddTask() {
     const title = newTaskTitle.trim();
-    if (!title || !defaultSubGoalId) return;
+    if (!title || !targetSubGoalId) return;
     try {
-      await createTask({ subGoalId: defaultSubGoalId, title, date: selectedDate });
+      await createTask({ subGoalId: targetSubGoalId, title, date: selectedDate });
       setNewTaskTitle("");
       loadTasks();
     } catch (e) {
@@ -257,6 +277,35 @@ export function HomeScreen({
               )}
             </View>
           ))
+        )}
+
+        {subGoalOptions.length > 1 && (
+          <View style={styles.subGoalPicker}>
+            <Text style={styles.subGoalPickerLabel}>追加先の中目標</Text>
+            <View style={styles.subGoalChipRow}>
+              {subGoalOptions.map((option) => {
+                const selected = option.id === targetSubGoalId;
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[styles.subGoalChip, selected && styles.subGoalChipSelected]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => setSelectedSubGoalId(option.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.subGoalChipText,
+                        selected && styles.subGoalChipTextSelected,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
         )}
 
         <View style={styles.addTaskRow}>
@@ -446,6 +495,39 @@ const styles = StyleSheet.create({
   },
   statusButtonTextActive: {
     color: colors.white,
+  },
+  subGoalPicker: {
+    marginTop: spacing.sm,
+  },
+  subGoalPickerLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
+  },
+  subGoalChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  subGoalChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+  },
+  subGoalChipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
+  },
+  subGoalChipText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  subGoalChipTextSelected: {
+    color: colors.primaryDark,
+    fontWeight: "600",
   },
   addTaskRow: {
     flexDirection: "row",
