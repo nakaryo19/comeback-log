@@ -43,8 +43,8 @@ export function formatShortDate(date: ISODateString): string {
 }
 
 /**
- * 今日・昨日などの相対ラベルを返す。該当しない日付は null。
- * 「今日から何日前か」を意識しすぎないよう、2日前より過去はラベルを出さない。
+ * 今日・昨日・明日の相対ラベルを返す。該当しない日付は null。
+ * 「今日から何日離れているか」を意識しすぎないよう、前後1日を超えるとラベルを出さない。
  */
 export function relativeDayLabel(
   date: ISODateString,
@@ -52,6 +52,7 @@ export function relativeDayLabel(
 ): string | null {
   if (date === today) return "今日";
   if (date === shiftDateString(today, -1)) return "昨日";
+  if (date === shiftDateString(today, 1)) return "明日";
   return null;
 }
 

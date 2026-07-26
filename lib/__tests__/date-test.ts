@@ -87,13 +87,15 @@ describe("formatDateLabel / formatShortDate", () => {
 });
 
 describe("relativeDayLabel", () => {
-  test("当日は「今日」、前日は「昨日」を返す", () => {
+  test("当日は「今日」、前日は「昨日」、翌日は「明日」を返す", () => {
     expect(relativeDayLabel("2026-07-26", "2026-07-26")).toBe("今日");
     expect(relativeDayLabel("2026-07-25", "2026-07-26")).toBe("昨日");
+    expect(relativeDayLabel("2026-07-27", "2026-07-26")).toBe("明日");
   });
 
-  test("2日前より過去はラベルを出さない", () => {
+  test("前後1日を超えるとラベルを出さない", () => {
     expect(relativeDayLabel("2026-07-24", "2026-07-26")).toBeNull();
+    expect(relativeDayLabel("2026-07-28", "2026-07-26")).toBeNull();
   });
 
   test("基準日を省略すると今日を基準にする", () => {

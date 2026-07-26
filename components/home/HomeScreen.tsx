@@ -54,7 +54,9 @@ export function HomeScreen({
   const today = todayDateString();
   const [selectedDate, setSelectedDate] = useState<ISODateString>(today);
   const isToday = selectedDate === today;
+  const isFuture = selectedDate > today;
   const dateLabel = isToday ? "今日" : formatShortDate(selectedDate);
+  const eyebrow = isToday ? "今日のログ" : isFuture ? "これからの予定" : "過去のログ";
   const defaultSubGoalId = findDefaultSubGoalId(goals);
 
   // 大目標が複数ある場合のみ「大目標 / 中目標」と表示して区別できるようにする
@@ -168,7 +170,7 @@ export function HomeScreen({
       <View style={styles.content}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.eyebrow}>{isToday ? "今日のログ" : "過去のログ"}</Text>
+            <Text style={styles.eyebrow}>{eyebrow}</Text>
             <Text style={styles.title}>{dateLabel}のタスク</Text>
           </View>
           <TouchableOpacity style={styles.navLinkButton} onPress={onOpenGoalManagement}>

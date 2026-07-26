@@ -3,10 +3,7 @@ import { formatDateLabel, relativeDayLabel, shiftDateString } from "../../lib/da
 import type { ISODateString } from "../../types/database";
 import { colors, radius, spacing } from "../../lib/theme";
 
-/**
- * ホーム画面の日付切り替え導線。
- * 未来日はまだ扱わないため（日付指定のタスク追加が未実装）、今日より先へは進めない。
- */
+/** ホーム画面の日付切り替え導線。過去・未来のどちらへも移動できる */
 export function DateNavigator({
   date,
   today,
@@ -17,7 +14,6 @@ export function DateNavigator({
   onChangeDate: (date: ISODateString) => void;
 }) {
   const isToday = date === today;
-  const canGoNext = date < today;
   const relative = relativeDayLabel(date, today);
 
   return (
@@ -38,14 +34,12 @@ export function DateNavigator({
         </View>
 
         <TouchableOpacity
-          style={[styles.arrowButton, !canGoNext && styles.arrowButtonDisabled]}
+          style={styles.arrowButton}
           accessibilityRole="button"
           accessibilityLabel="翌日"
-          accessibilityState={{ disabled: !canGoNext }}
-          disabled={!canGoNext}
           onPress={() => onChangeDate(shiftDateString(date, 1))}
         >
-          <Text style={[styles.arrowText, !canGoNext && styles.arrowTextDisabled]}>›</Text>
+          <Text style={styles.arrowText}>›</Text>
         </TouchableOpacity>
       </View>
 
@@ -77,17 +71,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  arrowButtonDisabled: {
-    borderColor: colors.borderLight,
-    backgroundColor: colors.background,
-  },
   arrowText: {
     fontSize: 20,
     lineHeight: 22,
     color: colors.textSecondary,
-  },
-  arrowTextDisabled: {
-    color: colors.border,
   },
   labelBox: {
     flex: 1,

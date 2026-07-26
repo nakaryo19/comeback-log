@@ -326,3 +326,50 @@ describe("<HomeScreen /> タスク追加時の中目標選択", () => {
     expect(screen.getByText("簿記2級に合格する / 商業簿記")).toBeTruthy();
   });
 });
+
+describe("<HomeScreen /> 先の予定の登録", () => {
+  const TOMORROW = shiftDateString(TODAY, 1);
+
+  test("「翌日」で未来日へ進み、その日付のタスクとして作成する", async () => {
+    stubTasksByDate({ [TOMORROW]: [] });
+    mockCreateTask.mockResolvedValue(makeTask("t9", "模試を受ける", TOMORROW));
+    await renderHome();
+    await screen.findByPlaceholderText("今日のタスクを追加");
+
+    await fireEvent.press(screen.getByLabelText("翌日"));
+
+    const input = await screen.findByPlaceholderText(`${formatShortDate(TOMORROW)}のタスクを追加`);
+    await fireEvent.changeText(input, "模試を受ける");
+    await fireEvent.press(screen.getByText("追加"));
+
+    expect(mockCreateTask).toHaveBeenCalledWith({
+      subGoalId: "sg-1",
+      title: "模試を受ける",
+      date: TOMORROW,
+    });
+  });
+
+  test("未来日では見出しを「これからの予定」にする", async () => {
+    await renderHome();
+    await screen.findByPlaceholderText("今日のタスクを追加");
+
+    await fireEvent.press(screen.getByLabelText("翌日"));
+
+    expect(await screen.findByText("これからの予定")).toBeTruthy();
+    expect(screen.getByText(`${formatShortDate(TOMORROW)}のタスク`)).toBeTruthy();
+  });
+
+  test("何日でも先へ進める", async () => {
+    const nextWeek = shiftDateString(TODAY, 7);
+    stubTasksByDate({ [nextWeek]: [makeTask("t9", "模試を受ける", nextWeek)] });
+    await renderHome();
+    await screen.findByPlaceholderText("今日のタスクを追加");
+
+    for (let i = 0; i < 7; i++) {
+      await fireEvent.press(screen.getByLabelText("翌日"));
+    }
+
+    expect(await screen.findByText("模試を受ける")).toBeTruthy();
+    expect(mockFetchTasksForDate).toHaveBeenCalledWith(nextWeek);
+  });
+});
