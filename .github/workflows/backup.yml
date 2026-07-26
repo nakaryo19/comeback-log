@@ -1,0 +1,70 @@
+# Supabase 無料枠にはバックアップ機能が一切ないため、自前で日次バックアップを取る。
+#
+# ダンプには感情ログの自由記述が平文で含まれるため、
+# Artifacts に置く前に必ず gpg（AES256）で暗号化する。
+# 復号パスフレーズは Secrets のみに存在し、Artifacts からは復元できない。
+#
+# 副次的な効果として、pg_dump は実際のDB活動になるため、
+# keep-alive よりも確実な自動停止対策としても働く。
+#
+# 詳細は docs/運用/バックアップ運用.md を参照。
+name: Database Backup
+
+on:
+  schedule:
+    # 毎日 03:37 UTC（keep-alive の 02:17 とずらしている）
+    - cron: "37 3 * * *"
+  # 手動実行用。マイグレーション適用前にはここから実行すること。
+  workflow_dispatch:
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v4
+
+      - name: シークレットの存在を確認
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::シークレット SUPABASE_DB_URL / BACKUP_PASSPHRASE が未設定です。docs/運用/バックアップ運用.md を参照してください。"
+            exit 1
+          fi
+
+      # ランナー同梱の pg_dump はサーバより古いことがあり、その場合ダンプが失敗する。
+      # PGDG から新しいクライアントを入れて、バージョン差で落ちないようにする。
+      - name: PostgreSQL クライアントを導入
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -sS -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          pg_dump --version
+
+      - name: バックアップを取得して暗号化
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          chmod +x scripts/backup-db.sh
+          ./scripts/backup-db.sh backup
+
+      - name: 暗号化済みバックアップをアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup/*.gpg
+          # Artifacts の上限は90日。これより長く保持したい場合は手動でダウンロードして保管する。
+          retention-days: 90
+          if-no-files-found: error
