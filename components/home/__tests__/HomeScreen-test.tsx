@@ -10,7 +10,7 @@ import {
 } from "../../../lib/supabase/tasks";
 import { fetchEmotionScoresForTasks, fetchLoggedTaskIds } from "../../../lib/supabase/emotionLogs";
 import type { GoalWithSubGoals } from "../../../lib/supabase/goals";
-import type { Task, TaskStatus } from "../../../types/database";
+import type { SubGoal, Task, TaskStatus } from "../../../types/database";
 
 jest.mock("../../../lib/supabase/tasks", () => ({
   fetchTasksForDate: jest.fn(),
@@ -72,8 +72,19 @@ function stubTasksByDate(tasksByDate: Record<string, Task[]>) {
   mockFetchTasksForDate.mockImplementation(async (date) => tasksByDate[date] ?? []);
 }
 
-async function renderHome() {
-  return await render(<HomeScreen goals={goals} onOpenGoalManagement={jest.fn()} />);
+async function renderHome(withGoals: GoalWithSubGoals[] = goals) {
+  return await render(<HomeScreen goals={withGoals} onOpenGoalManagement={jest.fn()} />);
+}
+
+function makeSubGoal(id: string, title: string, isProvisional = false): SubGoal {
+  return {
+    id,
+    goal_id: "g-1",
+    title,
+    is_provisional: isProvisional,
+    created_at: "2026-07-01T00:00:00Z",
+    updated_at: "2026-07-01T00:00:00Z",
+  };
 }
 
 beforeEach(() => {
@@ -223,5 +234,95 @@ describe("<HomeScreen /> タスクの編集・削除", () => {
     await fireEvent.press(screen.getByText("削除"));
 
     expect(screen.getByText(/記録した感情ログも一緒に削除されます。/)).toBeTruthy();
+  });
+});
+
+describe("<HomeScreen /> タスク追加時の中目標選択", () => {
+  const multiSubGoals: GoalWithSubGoals[] = [
+    {
+      ...goals[0],
+      sub_goals: [
+        makeSubGoal("sg-1", "ステップ1", true),
+        makeSubGoal("sg-2", "一次試験対策"),
+        makeSubGoal("sg-3", "二次試験対策"),
+      ],
+    },
+  ];
+
+  test("中目標が1つだけなら選択UIを出さない", async () => {
+    const single: GoalWithSubGoals[] = [
+      { ...goals[0], sub_goals: [makeSubGoal("sg-1", "ステップ1", true)] },
+    ];
+    await renderHome(single);
+    await screen.findByPlaceholderText("今日のタスクを追加");
+
+    expect(screen.queryByText("追加先の中目標")).toBeNull();
+  });
+
+  test("中目標が複数あれば選択でき、未選択なら既定の中目標に割り当てる", async () => {
+    mockCreateTask.mockResolvedValue(makeTask("t9", "復習", TODAY));
+    await renderHome(multiSubGoals);
+
+    expect(await screen.findByText("追加先の中目標")).toBeTruthy();
+
+    await fireEvent.changeText(screen.getByPlaceholderText("今日のタスクを追加"), "復習");
+    await fireEvent.press(screen.getByText("追加"));
+
+    // findDefaultSubGoalId のモックが返す "sg-1"（直近の仮中目標）
+    expect(mockCreateTask).toHaveBeenCalledWith({
+      subGoalId: "sg-1",
+      title: "復習",
+      date: TODAY,
+    });
+  });
+
+  test("選んだ中目標に紐づけてタスクを作成する", async () => {
+    mockCreateTask.mockResolvedValue(makeTask("t9", "過去問", TODAY));
+    await renderHome(multiSubGoals);
+    await screen.findByText("追加先の中目標");
+
+    await fireEvent.press(screen.getByText("二次試験対策"));
+    await fireEvent.changeText(screen.getByPlaceholderText("今日のタスクを追加"), "過去問");
+    await fireEvent.press(screen.getByText("追加"));
+
+    expect(mockCreateTask).toHaveBeenCalledWith({
+      subGoalId: "sg-3",
+      title: "過去問",
+      date: TODAY,
+    });
+  });
+
+  test("選択は次のタスク追加にも引き継がれる", async () => {
+    mockCreateTask.mockResolvedValue(makeTask("t9", "x", TODAY));
+    await renderHome(multiSubGoals);
+    await screen.findByText("追加先の中目標");
+
+    await fireEvent.press(screen.getByText("一次試験対策"));
+    await fireEvent.changeText(screen.getByPlaceholderText("今日のタスクを追加"), "1本目");
+    await fireEvent.press(screen.getByText("追加"));
+    await fireEvent.changeText(screen.getByPlaceholderText("今日のタスクを追加"), "2本目");
+    await fireEvent.press(screen.getByText("追加"));
+
+    expect(mockCreateTask).toHaveBeenLastCalledWith({
+      subGoalId: "sg-2",
+      title: "2本目",
+      date: TODAY,
+    });
+  });
+
+  test("大目標が複数あるときは「大目標 / 中目標」で区別できるようにする", async () => {
+    const twoGoals: GoalWithSubGoals[] = [
+      { ...goals[0], sub_goals: [makeSubGoal("sg-1", "ステップ1", true)] },
+      {
+        ...goals[0],
+        id: "g-2",
+        title: "簿記2級に合格する",
+        sub_goals: [makeSubGoal("sg-9", "商業簿記")],
+      },
+    ];
+    await renderHome(twoGoals);
+
+    expect(await screen.findByText("公務員試験に合格する / ステップ1")).toBeTruthy();
+    expect(screen.getByText("簿記2級に合格する / 商業簿記")).toBeTruthy();
   });
 });
