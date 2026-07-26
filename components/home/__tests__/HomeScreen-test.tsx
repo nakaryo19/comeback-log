@@ -1,7 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { HomeScreen } from "../HomeScreen";
 import { formatShortDate, shiftDateString, todayDateString } from "../../../lib/date";
-import { createTask, fetchTasksForDate, fetchTasksForDateRange } from "../../../lib/supabase/tasks";
+import {
+  createTask,
+  deleteTask,
+  fetchTasksForDate,
+  fetchTasksForDateRange,
+  updateTaskTitle,
+} from "../../../lib/supabase/tasks";
 import { fetchEmotionScoresForTasks, fetchLoggedTaskIds } from "../../../lib/supabase/emotionLogs";
 import type { GoalWithSubGoals } from "../../../lib/supabase/goals";
 import type { Task, TaskStatus } from "../../../types/database";
@@ -11,6 +17,8 @@ jest.mock("../../../lib/supabase/tasks", () => ({
   fetchTasksForDateRange: jest.fn(),
   createTask: jest.fn(),
   updateTaskStatus: jest.fn(),
+  updateTaskTitle: jest.fn(),
+  deleteTask: jest.fn(),
 }));
 jest.mock("../../../lib/supabase/emotionLogs", () => ({
   fetchLoggedTaskIds: jest.fn(),
@@ -30,6 +38,8 @@ const mockFetchEmotionScores = fetchEmotionScoresForTasks as jest.MockedFunction
   typeof fetchEmotionScoresForTasks
 >;
 const mockCreateTask = createTask as jest.MockedFunction<typeof createTask>;
+const mockUpdateTaskTitle = updateTaskTitle as jest.MockedFunction<typeof updateTaskTitle>;
+const mockDeleteTask = deleteTask as jest.MockedFunction<typeof deleteTask>;
 
 const TODAY = todayDateString();
 const YESTERDAY = shiftDateString(TODAY, -1);
@@ -66,14 +76,17 @@ async function renderHome() {
   return await render(<HomeScreen goals={goals} onOpenGoalManagement={jest.fn()} />);
 }
 
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockFetchLoggedTaskIds.mockResolvedValue(new Set());
+  mockFetchTasksForDateRange.mockResolvedValue([]);
+  mockFetchEmotionScores.mockResolvedValue([]);
+  mockUpdateTaskTitle.mockResolvedValue(undefined);
+  mockDeleteTask.mockResolvedValue(undefined);
+  stubTasksByDate({});
+});
+
 describe("<HomeScreen /> 日付切り替え", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockFetchLoggedTaskIds.mockResolvedValue(new Set());
-    mockFetchTasksForDateRange.mockResolvedValue([]);
-    mockFetchEmotionScores.mockResolvedValue([]);
-    stubTasksByDate({});
-  });
 
   test("初期表示では今日のタスクを取得する", async () => {
     stubTasksByDate({ [TODAY]: [makeTask("t1", "英単語100個", TODAY)] });
@@ -139,5 +152,76 @@ describe("<HomeScreen /> 日付切り替え", () => {
       title: "復習",
       date: YESTERDAY,
     });
+  });
+});
+
+describe("<HomeScreen /> タスクの編集・削除", () => {
+  async function renderWithTask(logged = false) {
+    stubTasksByDate({ [TODAY]: [makeTask("t1", "英単語100個", TODAY)] });
+    if (logged) mockFetchLoggedTaskIds.mockResolvedValue(new Set(["t1"]));
+    await renderHome();
+    await screen.findByText("英単語100個");
+  }
+
+  test("「編集」でタイトルを書き換えて保存できる", async () => {
+    await renderWithTask();
+
+    await fireEvent.press(screen.getByText("編集"));
+    await fireEvent.changeText(screen.getByDisplayValue("英単語100個"), "英単語150個");
+    await fireEvent.press(screen.getByText("保存"));
+
+    expect(mockUpdateTaskTitle).toHaveBeenCalledWith("t1", "英単語150個");
+    expect(await screen.findByText("英単語150個")).toBeTruthy();
+  });
+
+  test("「やめる」で編集を破棄する", async () => {
+    await renderWithTask();
+
+    await fireEvent.press(screen.getByText("編集"));
+    await fireEvent.changeText(screen.getByDisplayValue("英単語100個"), "書きかけ");
+    await fireEvent.press(screen.getByText("やめる"));
+
+    expect(mockUpdateTaskTitle).not.toHaveBeenCalled();
+    expect(screen.getByText("英単語100個")).toBeTruthy();
+  });
+
+  test("空文字では保存せず、元のタイトルのままにする", async () => {
+    await renderWithTask();
+
+    await fireEvent.press(screen.getByText("編集"));
+    await fireEvent.changeText(screen.getByDisplayValue("英単語100個"), "   ");
+    await fireEvent.press(screen.getByText("保存"));
+
+    expect(mockUpdateTaskTitle).not.toHaveBeenCalled();
+    expect(screen.getByText("英単語100個")).toBeTruthy();
+  });
+
+  test("「削除」は確認を挟んでから削除する", async () => {
+    await renderWithTask();
+
+    await fireEvent.press(screen.getByText("削除"));
+    expect(mockDeleteTask).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByText("削除する"));
+    expect(mockDeleteTask).toHaveBeenCalledWith("t1");
+    expect(screen.queryByText("英単語100個")).toBeNull();
+  });
+
+  test("確認を「やめる」で閉じると削除しない", async () => {
+    await renderWithTask();
+
+    await fireEvent.press(screen.getByText("削除"));
+    await fireEvent.press(screen.getByText("やめる"));
+
+    expect(mockDeleteTask).not.toHaveBeenCalled();
+    expect(screen.getByText("英単語100個")).toBeTruthy();
+  });
+
+  test("感情ログが記録済みのタスクは、ログも消える旨を確認文に添える", async () => {
+    await renderWithTask(true);
+
+    await fireEvent.press(screen.getByText("削除"));
+
+    expect(screen.getByText(/記録した感情ログも一緒に削除されます。/)).toBeTruthy();
   });
 });
