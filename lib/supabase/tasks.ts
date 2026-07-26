@@ -40,6 +40,53 @@ export async function fetchTasksForSubGoals(subGoalIds: UUID[]): Promise<Task[]>
   return data ?? [];
 }
 
+/** 中目標1件の全タスクを取得する（中目標の詳細画面用。件数を打ち切らない） */
+export async function fetchTasksForSubGoal(subGoalId: UUID): Promise<Task[]> {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("sub_goal_id", subGoalId)
+    .order("date", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * 中目標ごとのタスク件数を数える。
+ * 一覧では先頭数件しか描かないが、「すべて見る（N件）」の N には正確な値が要るため、
+ * sub_goal_id だけを引いて件数を集計する（表示用の取得は50件で打ち切っているので使えない）。
+ */
+export async function fetchTaskCountsBySubGoal(
+  subGoalIds: UUID[],
+): Promise<Record<UUID, number>> {
+  if (subGoalIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("sub_goal_id")
+    .in("sub_goal_id", subGoalIds);
+  if (error) throw error;
+
+  const counts: Record<UUID, number> = {};
+  for (const row of data ?? []) {
+    counts[row.sub_goal_id] = (counts[row.sub_goal_id] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * 中目標配下の全タスクIDを取得する（削除時の影響範囲を数えるため）。
+ * fetchTasksForSubGoals は表示用に50件で打ち切っているので、件数集計には使えない。
+ */
+export async function fetchTaskIdsForSubGoals(subGoalIds: UUID[]): Promise<UUID[]> {
+  if (subGoalIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("id")
+    .in("sub_goal_id", subGoalIds);
+  if (error) throw error;
+  return (data ?? []).map((row) => row.id);
+}
+
 export async function createTask(params: {
   subGoalId: UUID;
   title: string;

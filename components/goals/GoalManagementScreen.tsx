@@ -1,11 +1,39 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import type { GoalWithSubGoals } from "../../lib/supabase/goals";
-import { createGoal, createSubGoal, renameGoal, renameSubGoal } from "../../lib/supabase/goals";
-import { fetchTasksForSubGoals, reassignTask } from "../../lib/supabase/tasks";
+import {
+  createGoal,
+  createSubGoal,
+  deleteGoal,
+  deleteSubGoal,
+  renameGoal,
+  renameSubGoal,
+} from "../../lib/supabase/goals";
+import {
+  fetchTaskCountsBySubGoal,
+  fetchTaskIdsForSubGoals,
+  fetchTasksForSubGoals,
+  reassignTask,
+} from "../../lib/supabase/tasks";
+import { countEmotionLogsForTasks } from "../../lib/supabase/emotionLogs";
 import { useAuth } from "../../lib/supabase/auth-context";
+import { SubGoalDetail } from "./SubGoalDetail";
 import type { SubGoal, Task } from "../../types/database";
 import { colors, radius, shadow, spacing } from "../../lib/theme";
+
+/** 既定で表示する中目標の件数。これを超える分は「他N件を表示」で展開する */
+const SUB_GOAL_PREVIEW_COUNT = 3;
+
+/** 中目標カードに出すタスクの件数。これを超える分は中目標の詳細画面で見る */
+const TASK_PREVIEW_COUNT = 3;
+
+type PendingDelete = {
+  kind: "goal" | "subGoal";
+  id: string;
+  title: string;
+  /** 消える件数。集計が終わるまでは null */
+  impact: { tasks: number; emotionLogs: number } | null;
+};
 
 export function GoalManagementScreen({
   goals,
@@ -23,6 +51,11 @@ export function GoalManagementScreen({
   const [newSubGoalTitles, setNewSubGoalTitles] = useState<Record<string, string>>({});
   const [newGoalTitle, setNewGoalTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [expandedGoalIds, setExpandedGoalIds] = useState<Set<string>>(new Set());
+  const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
+  const [detailSubGoal, setDetailSubGoal] = useState<SubGoal | null>(null);
+  // 削除確認中の対象と、そこで消えるデータの件数（数え終わるまでは null）
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
 
   const allSubGoalIds = useMemo(
     () => goals.flatMap((goal) => goal.sub_goals).map((subGoal) => subGoal.id),
@@ -37,6 +70,10 @@ export function GoalManagementScreen({
           (grouped[task.sub_goal_id] ??= []).push(task);
         }
         setTasksBySubGoal(grouped);
+      })
+      .then(() => fetchTaskCountsBySubGoal(allSubGoalIds))
+      .then((counts) => {
+        if (counts) setTaskCounts(counts);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "タスクの取得に失敗しました。"));
   }, [allSubGoalIds]);
@@ -95,6 +132,63 @@ export function GoalManagementScreen({
     }
   }
 
+  /**
+   * 削除確認を開き、実際に消えるタスク・感情ログの件数を数える。
+   * 感情ログは本アプリで最も失いたくないデータのため、
+   * 「消えます」という警告文ではなく具体的な件数を出す。
+   */
+  async function requestDelete(kind: PendingDelete["kind"], id: string, title: string) {
+    setPendingDelete({ kind, id, title, impact: null });
+    const subGoalIds =
+      kind === "goal"
+        ? (goals.find((goal) => goal.id === id)?.sub_goals ?? []).map((s) => s.id)
+        : [id];
+    try {
+      const taskIds = await fetchTaskIdsForSubGoals(subGoalIds);
+      const emotionLogs = await countEmotionLogsForTasks(taskIds);
+      setPendingDelete((prev) =>
+        prev && prev.id === id ? { ...prev, impact: { tasks: taskIds.length, emotionLogs } } : prev,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "削除対象の件数の取得に失敗しました。");
+      setPendingDelete(null);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const { kind, id } = pendingDelete;
+    setPendingDelete(null);
+    try {
+      if (kind === "goal") {
+        await deleteGoal(id);
+      } else {
+        await deleteSubGoal(id);
+      }
+      onGoalsChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "削除に失敗しました。");
+    }
+  }
+
+  /** 記録が溜まった際のスクロール量を抑えるため、既定では先頭数件のみ見せる */
+  function visibleSubGoals(goal: GoalWithSubGoals): SubGoal[] {
+    if (expandedGoalIds.has(goal.id)) return goal.sub_goals;
+    return goal.sub_goals.slice(0, SUB_GOAL_PREVIEW_COUNT);
+  }
+
+  function toggleExpanded(goalId: string) {
+    setExpandedGoalIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(goalId)) {
+        next.delete(goalId);
+      } else {
+        next.add(goalId);
+      }
+      return next;
+    });
+  }
+
   async function handleMoveTask(task: Task, targetSubGoalId: string) {
     setTasksBySubGoal((prev) => {
       const next = { ...prev };
@@ -109,6 +203,10 @@ export function GoalManagementScreen({
     }
   }
 
+  if (detailSubGoal) {
+    return <SubGoalDetail subGoal={detailSubGoal} onBack={() => setDetailSubGoal(null)} />;
+  }
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
       <View style={styles.content}>
@@ -121,16 +219,33 @@ export function GoalManagementScreen({
 
         {goals.map((goal) => (
           <View key={goal.id} style={styles.goalSection}>
-            <TextInput
-              style={styles.goalTitleInput}
-              value={goalDraftFor(goal)}
-              accessibilityLabel="大目標"
-              onChangeText={(value) => setGoalDrafts((prev) => ({ ...prev, [goal.id]: value }))}
-              onBlur={() => handleRenameGoal(goal)}
-              onSubmitEditing={() => handleRenameGoal(goal)}
-            />
+            <View style={styles.goalHeaderRow}>
+              <TextInput
+                style={styles.goalTitleInput}
+                value={goalDraftFor(goal)}
+                accessibilityLabel="大目標"
+                onChangeText={(value) => setGoalDrafts((prev) => ({ ...prev, [goal.id]: value }))}
+                onBlur={() => handleRenameGoal(goal)}
+                onSubmitEditing={() => handleRenameGoal(goal)}
+              />
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={`大目標「${goal.title}」を削除`}
+                onPress={() => requestDelete("goal", goal.id, goal.title)}
+              >
+                <Text style={styles.subtleAction}>削除</Text>
+              </TouchableOpacity>
+            </View>
 
-            {goal.sub_goals.map((subGoal) => {
+            {pendingDelete?.kind === "goal" && pendingDelete.id === goal.id && (
+              <DeleteConfirm
+                pending={pendingDelete}
+                onCancel={() => setPendingDelete(null)}
+                onConfirm={confirmDelete}
+              />
+            )}
+
+            {visibleSubGoals(goal).map((subGoal) => {
               const otherSubGoals = goal.sub_goals.filter((s) => s.id !== subGoal.id);
               const tasks = tasksBySubGoal[subGoal.id] ?? [];
               return (
@@ -146,11 +261,26 @@ export function GoalManagementScreen({
                       onSubmitEditing={() => handleRename(subGoal)}
                     />
                     {subGoal.is_provisional && <Text style={styles.badge}>仮</Text>}
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={`中目標「${subGoal.title}」を削除`}
+                      onPress={() => requestDelete("subGoal", subGoal.id, subGoal.title)}
+                    >
+                      <Text style={styles.subtleAction}>削除</Text>
+                    </TouchableOpacity>
                   </View>
+
+                  {pendingDelete?.kind === "subGoal" && pendingDelete.id === subGoal.id && (
+                    <DeleteConfirm
+                      pending={pendingDelete}
+                      onCancel={() => setPendingDelete(null)}
+                      onConfirm={confirmDelete}
+                    />
+                  )}
 
                   {tasks.length > 0 && (
                     <View style={styles.taskList}>
-                      {tasks.map((task) => (
+                      {tasks.slice(0, TASK_PREVIEW_COUNT).map((task) => (
                         <View key={task.id} style={styles.taskRow}>
                           <Text style={styles.taskText} numberOfLines={1}>
                             {task.date}　{task.title}
@@ -172,9 +302,32 @@ export function GoalManagementScreen({
                       ))}
                     </View>
                   )}
+
+                  {(taskCounts[subGoal.id] ?? tasks.length) > TASK_PREVIEW_COUNT && (
+                    <TouchableOpacity
+                      style={styles.detailLink}
+                      accessibilityRole="button"
+                      accessibilityLabel={`中目標「${subGoal.title}」のタスクをすべて見る`}
+                      onPress={() => setDetailSubGoal(subGoal)}
+                    >
+                      <Text style={styles.detailLinkText}>
+                        すべて見る（{taskCounts[subGoal.id] ?? tasks.length} 件）
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               );
             })}
+
+            {goal.sub_goals.length > SUB_GOAL_PREVIEW_COUNT && (
+              <TouchableOpacity style={styles.expandButton} onPress={() => toggleExpanded(goal.id)}>
+                <Text style={styles.expandButtonText}>
+                  {expandedGoalIds.has(goal.id)
+                    ? "中目標を折りたたむ"
+                    : `他 ${goal.sub_goals.length - SUB_GOAL_PREVIEW_COUNT} 件の中目標を表示`}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <View style={styles.addSubGoalRow}>
               <TextInput
@@ -226,6 +379,53 @@ export function GoalManagementScreen({
   );
 }
 
+/**
+ * 削除確認。消えるタスク・感情ログの件数を具体的に示す。
+ * 件数を伴わない警告文は読み飛ばされるため、数え終わるまで削除ボタンを押せなくしている。
+ */
+function DeleteConfirm({
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  pending: PendingDelete;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const label = pending.kind === "goal" ? "大目標" : "中目標";
+  const { impact } = pending;
+
+  return (
+    <View style={styles.confirmBox}>
+      <Text style={styles.confirmText}>
+        {label}「{pending.title}」を削除しますか？
+      </Text>
+      {impact === null ? (
+        <Text style={styles.confirmDetail}>削除される内容を確認しています...</Text>
+      ) : (
+        <Text style={styles.confirmDetail}>
+          {pending.kind === "goal" && "配下の中目標と、"}
+          タスク {impact.tasks} 件
+          {impact.emotionLogs > 0 && `、記録した感情ログ ${impact.emotionLogs} 件`}
+          も一緒に削除されます。元に戻せません。
+        </Text>
+      )}
+      <View style={styles.confirmActions}>
+        <TouchableOpacity
+          style={[styles.confirmDeleteButton, impact === null && styles.confirmDeleteButtonDisabled]}
+          disabled={impact === null}
+          onPress={onConfirm}
+        >
+          <Text style={styles.confirmDeleteButtonText}>削除する</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onCancel}>
+          <Text style={styles.subtleAction}>やめる</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -262,12 +462,78 @@ const styles = StyleSheet.create({
   goalSection: {
     marginBottom: spacing.xxl,
   },
+  goalHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
   goalTitleInput: {
+    flex: 1,
     fontSize: 17,
     fontWeight: "600",
     color: colors.textPrimary,
-    marginBottom: spacing.md,
     paddingVertical: spacing.xs,
+  },
+  subtleAction: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  detailLink: {
+    alignSelf: "flex-start",
+    marginTop: spacing.sm,
+  },
+  detailLinkText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  expandButton: {
+    alignSelf: "flex-start",
+    marginBottom: spacing.sm + 2,
+  },
+  expandButtonText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  confirmBox: {
+    backgroundColor: colors.neutralMuted,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  confirmText: {
+    fontSize: 13,
+    color: colors.textPrimary,
+    fontWeight: "600",
+    marginBottom: spacing.xs,
+  },
+  confirmDetail: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  confirmActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  confirmDeleteButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+  },
+  confirmDeleteButtonDisabled: {
+    opacity: 0.5,
+  },
+  confirmDeleteButtonText: {
+    fontSize: 13,
+    color: colors.textPrimary,
+    fontWeight: "600",
   },
   addGoalCard: {
     borderWidth: 1,

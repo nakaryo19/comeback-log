@@ -55,7 +55,17 @@ export function WeeklySummary({ refreshKey }: { refreshKey?: unknown }) {
       </View>
       <View style={styles.divider} />
       <View style={styles.card}>
-        <Text style={styles.value}>{averageScore === null ? "－" : averageScore}</Text>
+        {/* 5点満点であることが分かるよう分母を添える（スコアだけでは満点が読み取れないため） */}
+        <Text style={styles.value}>
+          {averageScore === null ? (
+            "－"
+          ) : (
+            <>
+              {averageScore}
+              <Text style={styles.valueSuffix}> / 5</Text>
+            </>
+          )}
+        </Text>
         <Text style={styles.label}>今週の平均感情スコア</Text>
       </View>
     </View>
@@ -85,6 +95,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     color: colors.textPrimary,
+  },
+  valueSuffix: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.textMuted,
   },
   label: {
     fontSize: 12,

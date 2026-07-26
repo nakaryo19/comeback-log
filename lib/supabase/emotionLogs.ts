@@ -23,6 +23,20 @@ export async function fetchLoggedTaskIds(taskIds: UUID[]): Promise<Set<UUID>> {
   return new Set((data ?? []).map((row) => row.task_id));
 }
 
+/**
+ * 指定タスク群に紐づく感情ログの件数を数える（削除時の影響範囲の提示用）。
+ * 本文は取得しない。件数だけを返す。
+ */
+export async function countEmotionLogsForTasks(taskIds: UUID[]): Promise<number> {
+  if (taskIds.length === 0) return 0;
+  const { count, error } = await supabase
+    .from("emotion_logs")
+    .select("task_id", { count: "exact", head: true })
+    .in("task_id", taskIds);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function createEmotionLog(params: {
   taskId: UUID;
   score: EmotionScore;
