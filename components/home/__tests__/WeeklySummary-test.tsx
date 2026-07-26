@@ -49,12 +49,12 @@ describe("<WeeklySummary />", () => {
     );
 
     await screen.findByText("50%"); // done 2/4
-    await screen.findByText("4"); // (4+5+3)/3
+    await screen.findByText("4 / 5"); // (4+5+3)/3。5点満点であることが分かるよう分母を添える
   });
 
   test("平均スコアは小数第1位まで丸める", async () => {
     await setup([makeTask("t1", "done")], [3, 4]);
-    await screen.findByText("3.5");
+    await screen.findByText("3.5 / 5");
   });
 
   test("タスクが無い週は達成率を「－」と表示する", async () => {

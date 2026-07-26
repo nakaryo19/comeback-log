@@ -104,6 +104,22 @@ export async function renameSubGoal(subGoalId: UUID, title: string): Promise<voi
   if (error) throw error;
 }
 
+/**
+ * 大目標を削除する。
+ * 配下の中目標・タスク・感情ログもDBの on delete cascade で同時に消える。
+ * 呼び出し側は削除前に、消える感情ログの件数を必ずユーザーに提示すること。
+ */
+export async function deleteGoal(goalId: UUID): Promise<void> {
+  const { error } = await supabase.from("goals").delete().eq("id", goalId);
+  if (error) throw error;
+}
+
+/** 中目標を削除する。配下のタスク・感情ログも同時に消える（deleteGoal と同じ注意が要る） */
+export async function deleteSubGoal(subGoalId: UUID): Promise<void> {
+  const { error } = await supabase.from("sub_goals").delete().eq("id", subGoalId);
+  if (error) throw error;
+}
+
 export async function createSubGoal(goalId: UUID, title: string): Promise<SubGoal> {
   const { data, error } = await supabase
     .from("sub_goals")
