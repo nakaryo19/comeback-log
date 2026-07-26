@@ -64,6 +64,17 @@ export async function updateTaskStatus(taskId: UUID, status: TaskStatus): Promis
   if (error) throw error;
 }
 
+export async function updateTaskTitle(taskId: UUID, title: string): Promise<void> {
+  const { error } = await supabase.from("tasks").update({ title }).eq("id", taskId);
+  if (error) throw error;
+}
+
+/** タスクを削除する。紐づく感情ログもDBのon delete cascadeで同時に消える */
+export async function deleteTask(taskId: UUID): Promise<void> {
+  const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+  if (error) throw error;
+}
+
 export async function reassignTask(taskId: UUID, subGoalId: UUID): Promise<void> {
   const { error } = await supabase.from("tasks").update({ sub_goal_id: subGoalId }).eq("id", taskId);
   if (error) throw error;

@@ -2,7 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import type { GoalWithSubGoals } from "../../lib/supabase/goals";
 import { findDefaultSubGoalId } from "../../lib/supabase/goals";
-import { createTask, fetchTasksForDate, updateTaskStatus } from "../../lib/supabase/tasks";
+import {
+  createTask,
+  deleteTask,
+  fetchTasksForDate,
+  updateTaskStatus,
+  updateTaskTitle,
+} from "../../lib/supabase/tasks";
 import { fetchLoggedTaskIds } from "../../lib/supabase/emotionLogs";
 import { formatShortDate, todayDateString } from "../../lib/date";
 import type { ISODateString, Task, TaskStatus } from "../../types/database";
@@ -39,6 +45,9 @@ export function HomeScreen({
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [summaryRefreshKey, setSummaryRefreshKey] = useState(0);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
   const today = todayDateString();
   const [selectedDate, setSelectedDate] = useState<ISODateString>(today);
@@ -66,7 +75,44 @@ export function HomeScreen({
 
   function handleChangeDate(date: ISODateString) {
     setEmotionPromptTaskId(null);
+    setEditingTaskId(null);
+    setDeletingTaskId(null);
     setSelectedDate(date);
+  }
+
+  function startEditing(task: Task) {
+    setDeletingTaskId(null);
+    setEditingTaskId(task.id);
+    setEditingTitle(task.title);
+  }
+
+  async function handleSaveTitle(task: Task) {
+    const title = editingTitle.trim();
+    if (!title || title === task.title) {
+      setEditingTaskId(null);
+      return;
+    }
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, title } : t)));
+    setEditingTaskId(null);
+    try {
+      await updateTaskTitle(task.id, title);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "タスクの更新に失敗しました。");
+      loadTasks();
+    }
+  }
+
+  async function handleDeleteTask(taskId: string) {
+    setDeletingTaskId(null);
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    if (emotionPromptTaskId === taskId) setEmotionPromptTaskId(null);
+    try {
+      await deleteTask(taskId);
+      setSummaryRefreshKey((k) => k + 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "タスクの削除に失敗しました。");
+      loadTasks();
+    }
   }
 
   async function handleStatusChange(taskId: string, status: TaskStatus) {
@@ -125,10 +171,59 @@ export function HomeScreen({
         ) : (
           tasks.map((task) => (
             <View key={task.id} style={styles.taskCard}>
-              <View style={styles.taskTitleRow}>
-                <Text style={styles.taskTitle}>{task.title}</Text>
-                {loggedTaskIds.has(task.id) && <Text style={styles.loggedBadge}>記録済み</Text>}
-              </View>
+              {editingTaskId === task.id ? (
+                <View style={styles.editRow}>
+                  <TextInput
+                    style={styles.editInput}
+                    value={editingTitle}
+                    onChangeText={setEditingTitle}
+                    onSubmitEditing={() => handleSaveTitle(task)}
+                    autoFocus
+                  />
+                  <TouchableOpacity
+                    style={styles.editSaveButton}
+                    onPress={() => handleSaveTitle(task)}
+                  >
+                    <Text style={styles.editSaveButtonText}>保存</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setEditingTaskId(null)}>
+                    <Text style={styles.subtleAction}>やめる</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.taskTitleRow}>
+                  <Text style={styles.taskTitle}>{task.title}</Text>
+                  {loggedTaskIds.has(task.id) && <Text style={styles.loggedBadge}>記録済み</Text>}
+                  <View style={styles.taskActions}>
+                    <TouchableOpacity onPress={() => startEditing(task)}>
+                      <Text style={styles.subtleAction}>編集</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setDeletingTaskId(task.id)}>
+                      <Text style={styles.subtleAction}>削除</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {deletingTaskId === task.id && (
+                <View style={styles.confirmBox}>
+                  <Text style={styles.confirmText}>
+                    このタスクを削除しますか？
+                    {loggedTaskIds.has(task.id) && "記録した感情ログも一緒に削除されます。"}
+                  </Text>
+                  <View style={styles.confirmActions}>
+                    <TouchableOpacity
+                      style={styles.confirmDeleteButton}
+                      onPress={() => handleDeleteTask(task.id)}
+                    >
+                      <Text style={styles.confirmDeleteButtonText}>削除する</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setDeletingTaskId(null)}>
+                      <Text style={styles.subtleAction}>やめる</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
               <View style={styles.statusRow}>
                 {STATUS_ORDER.map((status) => {
                   const active = task.status === status;
@@ -266,6 +361,71 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm - 4,
     paddingVertical: 2,
     paddingHorizontal: spacing.sm,
+    fontWeight: "600",
+  },
+  taskActions: {
+    flexDirection: "row",
+    gap: spacing.md,
+    marginLeft: "auto",
+  },
+  subtleAction: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  editRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  editInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    fontSize: 15,
+    color: colors.textPrimary,
+    backgroundColor: colors.background,
+  },
+  editSaveButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  editSaveButtonText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  confirmBox: {
+    backgroundColor: colors.neutralMuted,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  confirmText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  confirmActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  confirmDeleteButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+  },
+  confirmDeleteButtonText: {
+    fontSize: 13,
+    color: colors.textPrimary,
     fontWeight: "600",
   },
   statusRow: {
