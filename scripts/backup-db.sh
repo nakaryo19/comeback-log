@@ -9,13 +9,26 @@
 # CLAUDE.md「感情ログを外部に露出させない」方針に従い、
 # 保存前に必ず gpg で暗号化する。復号鍵を持たない場所には平文を置かない。
 #
+# 接続情報は URL ではなく個別の環境変数で受け取り、パスワードは PGPASSWORD で渡す。
+# 接続文字列にパスワードを埋めると、
+#   1. 記号（% & ! 等）がURLとして解釈されて壊れる
+#   2. 接続失敗時のエラーメッセージにパスワードの一部が出力されうる
+# という2つの問題があり、2 は公開リポジトリのActionsログへの漏洩に直結する。
+#
 # 使い方:
-#   SUPABASE_DB_URL=... BACKUP_PASSPHRASE=... ./scripts/backup-db.sh [出力先ディレクトリ]
+#   SUPABASE_DB_HOST=... SUPABASE_DB_USER=... SUPABASE_DB_PASSWORD=... \
+#     ./scripts/backup-db.sh [出力先ディレクトリ]
 #
 set -euo pipefail
 
-: "${SUPABASE_DB_URL:?環境変数 SUPABASE_DB_URL が未設定です（Supabase の Session pooler 接続文字列）}"
+: "${SUPABASE_DB_HOST:?環境変数 SUPABASE_DB_HOST が未設定です（例: aws-0-ap-northeast-1.pooler.supabase.com）}"
+: "${SUPABASE_DB_USER:?環境変数 SUPABASE_DB_USER が未設定です（例: postgres.<project-ref>）}"
+: "${SUPABASE_DB_PASSWORD:?環境変数 SUPABASE_DB_PASSWORD が未設定です}"
 : "${BACKUP_PASSPHRASE:?環境変数 BACKUP_PASSPHRASE が未設定です（バックアップ暗号化用のパスフレーズ）}"
+
+# Session pooler のポート。Transaction pooler(6543) では pg_dump が動かない。
+DB_PORT="${SUPABASE_DB_PORT:-5432}"
+DB_NAME="${SUPABASE_DB_NAME:-postgres}"
 
 OUT_DIR="${1:-backup}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -27,11 +40,24 @@ WORK="$(mktemp -d)"
 # 平文のダンプを残さないよう、成否にかかわらず必ず消す
 trap 'rm -rf "$WORK"' EXIT
 
+# パスワードはコマンドライン引数に載せない（ps や実行ログから見えるため）
+export PGPASSWORD="$SUPABASE_DB_PASSWORD"
+
+pg_dump_common=(
+  --host="$SUPABASE_DB_HOST"
+  --port="$DB_PORT"
+  --username="$SUPABASE_DB_USER"
+  --dbname="$DB_NAME"
+  --no-password
+  --no-owner
+  --no-privileges
+)
+
+echo "==> 接続先: ${SUPABASE_DB_USER}@${SUPABASE_DB_HOST}:${DB_PORT}/${DB_NAME}"
+
 echo "==> public スキーマをダンプします（goals / sub_goals / tasks / emotion_logs / public_profiles）"
-pg_dump "$SUPABASE_DB_URL" \
+pg_dump "${pg_dump_common[@]}" \
   --schema=public \
-  --no-owner \
-  --no-privileges \
   --clean \
   --if-exists \
   --file="$WORK/public.sql"
@@ -39,11 +65,9 @@ pg_dump "$SUPABASE_DB_URL" \
 # auth.users はプロジェクトごと失った場合の復旧に必要。
 # ただし権限やSupabase側の内部変更で失敗しうるため、失敗しても全体は止めない。
 echo "==> auth.users をダンプします（プロジェクト全損時の復旧用・ベストエフォート）"
-if pg_dump "$SUPABASE_DB_URL" \
+if pg_dump "${pg_dump_common[@]}" \
   --data-only \
   --table=auth.users \
-  --no-owner \
-  --no-privileges \
   --file="$WORK/auth_users.sql" 2>"$WORK/auth_users.err"; then
   echo "    auth.users のダンプに成功しました"
 else
@@ -52,6 +76,7 @@ else
   rm -f "$WORK/auth_users.sql"
   echo "auth.users のダンプに失敗（$(date -u +%FT%TZ)）" > "$WORK/auth_users.SKIPPED"
 fi
+rm -f "$WORK/auth_users.err"
 
 # 復旧時に何を見ればよいか分かるようにメモを同梱する
 cat > "$WORK/README.txt" <<EOF

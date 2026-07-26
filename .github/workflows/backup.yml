@@ -4,6 +4,10 @@
 # Artifacts に置く前に必ず gpg（AES256）で暗号化する。
 # 復号パスフレーズは Secrets のみに存在し、Artifacts からは復元できない。
 #
+# 接続情報はホスト・ユーザー・パスワードを個別のシークレットに分けている。
+# 接続文字列（URL）にまとめるとパスワードの記号がURLとして解釈されて壊れるうえ、
+# 接続失敗時のエラーにパスワードの一部が出力され、公開リポジトリのログに残りうるため。
+#
 # 副次的な効果として、pg_dump は実際のDB活動になるため、
 # keep-alive よりも確実な自動停止対策としても働く。
 #
@@ -31,11 +35,18 @@ jobs:
 
       - name: シークレットの存在を確認
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
-          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
-            echo "::error::シークレット SUPABASE_DB_URL / BACKUP_PASSPHRASE が未設定です。docs/運用/バックアップ運用.md を参照してください。"
+          missing=""
+          [ -z "$SUPABASE_DB_HOST" ] && missing="${missing} SUPABASE_DB_HOST"
+          [ -z "$SUPABASE_DB_USER" ] && missing="${missing} SUPABASE_DB_USER"
+          [ -z "$SUPABASE_DB_PASSWORD" ] && missing="${missing} SUPABASE_DB_PASSWORD"
+          [ -z "$BACKUP_PASSPHRASE" ] && missing="${missing} BACKUP_PASSPHRASE"
+          if [ -n "$missing" ]; then
+            echo "::error::未設定のシークレットがあります:${missing}。docs/運用/バックアップ運用.md を参照してください。"
             exit 1
           fi
 
@@ -54,7 +65,9 @@ jobs:
 
       - name: バックアップを取得して暗号化
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
           chmod +x scripts/backup-db.sh
