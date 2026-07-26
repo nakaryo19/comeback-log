@@ -41,7 +41,14 @@ cat <<'EOF'
 
 DB へ流し込む場合（内容を確認してから手動で実行）:
 
-  psql "$SUPABASE_DB_URL" -f RESTORED_DIR/public.sql
+  PGPASSWORD='...' psql \
+    --host=aws-0-<region>.pooler.supabase.com \
+    --port=5432 \
+    --username=postgres.<project-ref> \
+    --dbname=postgres \
+    --file=RESTORED_DIR/public.sql
+
+  ※ 接続文字列(URL)にパスワードを埋めない。記号が壊れる／エラーに出力される。
 
 public.sql は --clean --if-exists 付きで作られているため、
 既存の public スキーマのテーブルを削除してから作り直します。
