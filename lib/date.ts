@@ -12,6 +12,49 @@ function toDateString(d: Date): ISODateString {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * "YYYY-MM-DD" をローカルタイムのDateに変換する。
+ * `new Date("2026-07-24")` はUTC0時と解釈され、日本時間では前日にずれるため使わない。
+ */
+function parseDateString(date: ISODateString): Date {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/** 指定日から days 日ずらした日付を返す（負数で過去へ） */
+export function shiftDateString(date: ISODateString, days: number): ISODateString {
+  const d = parseDateString(date);
+  d.setDate(d.getDate() + days);
+  return toDateString(d);
+}
+
+const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+
+/** 画面表示用の日付ラベル（例: "7月24日（金）"） */
+export function formatDateLabel(date: ISODateString): string {
+  const d = parseDateString(date);
+  return `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAY_LABELS[d.getDay()]}）`;
+}
+
+/** 見出し用の短い日付ラベル（例: "7/24"） */
+export function formatShortDate(date: ISODateString): string {
+  const d = parseDateString(date);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+/**
+ * 今日・昨日などの相対ラベルを返す。該当しない日付は null。
+ * 「今日から何日前か」を意識しすぎないよう、2日前より過去はラベルを出さない。
+ */
+export function relativeDayLabel(
+  date: ISODateString,
+  today: ISODateString = todayDateString(),
+): string | null {
+  if (date === today) return "今日";
+  if (date === shiftDateString(today, -1)) return "昨日";
+  return null;
+}
+
 /** 今日を含む今週（月曜始まり〜日曜）の日付範囲を返す */
 export function currentWeekDateRange(): { start: ISODateString; end: ISODateString } {
   const today = new Date();

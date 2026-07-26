@@ -4,10 +4,11 @@ import type { GoalWithSubGoals } from "../../lib/supabase/goals";
 import { findDefaultSubGoalId } from "../../lib/supabase/goals";
 import { createTask, fetchTasksForDate, updateTaskStatus } from "../../lib/supabase/tasks";
 import { fetchLoggedTaskIds } from "../../lib/supabase/emotionLogs";
-import { todayDateString } from "../../lib/date";
-import type { Task, TaskStatus } from "../../types/database";
+import { formatShortDate, todayDateString } from "../../lib/date";
+import type { ISODateString, Task, TaskStatus } from "../../types/database";
 import { WeeklySummary } from "./WeeklySummary";
 import { EmotionLogForm } from "./EmotionLogForm";
+import { DateNavigator } from "./DateNavigator";
 import { colors, radius, shadow, spacing } from "../../lib/theme";
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
@@ -40,12 +41,15 @@ export function HomeScreen({
   const [summaryRefreshKey, setSummaryRefreshKey] = useState(0);
 
   const today = todayDateString();
+  const [selectedDate, setSelectedDate] = useState<ISODateString>(today);
+  const isToday = selectedDate === today;
+  const dateLabel = isToday ? "今日" : formatShortDate(selectedDate);
   const defaultSubGoalId = findDefaultSubGoalId(goals);
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
     try {
-      const fetchedTasks = await fetchTasksForDate(today);
+      const fetchedTasks = await fetchTasksForDate(selectedDate);
       setTasks(fetchedTasks);
       setLoggedTaskIds(await fetchLoggedTaskIds(fetchedTasks.map((t) => t.id)));
       setError(null);
@@ -54,11 +58,16 @@ export function HomeScreen({
     } finally {
       setLoading(false);
     }
-  }, [today]);
+  }, [selectedDate]);
 
   useEffect(() => {
     loadTasks();
   }, [loadTasks]);
+
+  function handleChangeDate(date: ISODateString) {
+    setEmotionPromptTaskId(null);
+    setSelectedDate(date);
+  }
 
   async function handleStatusChange(taskId: string, status: TaskStatus) {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
@@ -80,7 +89,7 @@ export function HomeScreen({
     const title = newTaskTitle.trim();
     if (!title || !defaultSubGoalId) return;
     try {
-      await createTask({ subGoalId: defaultSubGoalId, title, date: today });
+      await createTask({ subGoalId: defaultSubGoalId, title, date: selectedDate });
       setNewTaskTitle("");
       loadTasks();
     } catch (e) {
@@ -93,13 +102,15 @@ export function HomeScreen({
       <View style={styles.content}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.eyebrow}>今日のログ</Text>
-            <Text style={styles.title}>今日のタスク</Text>
+            <Text style={styles.eyebrow}>{isToday ? "今日のログ" : "過去のログ"}</Text>
+            <Text style={styles.title}>{dateLabel}のタスク</Text>
           </View>
           <TouchableOpacity style={styles.navLinkButton} onPress={onOpenGoalManagement}>
             <Text style={styles.navLink}>目標管理</Text>
           </TouchableOpacity>
         </View>
+
+        <DateNavigator date={selectedDate} today={today} onChangeDate={handleChangeDate} />
 
         <WeeklySummary refreshKey={summaryRefreshKey} />
 
@@ -109,7 +120,7 @@ export function HomeScreen({
           <Text style={styles.empty}>読み込み中...</Text>
         ) : tasks.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.empty}>今日のタスクはまだありません</Text>
+            <Text style={styles.empty}>{dateLabel}のタスクはまだありません</Text>
           </View>
         ) : (
           tasks.map((task) => (
@@ -156,7 +167,7 @@ export function HomeScreen({
         <View style={styles.addTaskRow}>
           <TextInput
             style={styles.addTaskInput}
-            placeholder="今日のタスクを追加"
+            placeholder={`${dateLabel}のタスクを追加`}
             placeholderTextColor={colors.textMuted}
             value={newTaskTitle}
             onChangeText={setNewTaskTitle}
