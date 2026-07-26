@@ -8,6 +8,8 @@ import {
   deleteSubGoal,
   renameGoal,
   renameSubGoal,
+  setGoalAchieved,
+  setSubGoalAchieved,
 } from "../../lib/supabase/goals";
 import {
   fetchTaskCountsBySubGoal,
@@ -20,6 +22,12 @@ import { useAuth } from "../../lib/supabase/auth-context";
 import { SubGoalDetail } from "./SubGoalDetail";
 import type { SubGoal, Task } from "../../types/database";
 import { colors, radius, shadow, spacing } from "../../lib/theme";
+
+/** 達成日時（ISO文字列）を「7/26」形式にする */
+function formatAchievedDate(isoDateTime: string): string {
+  const d = new Date(isoDateTime);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
 
 /** 既定で表示する中目標の件数。これを超える分は「他N件を表示」で展開する */
 const SUB_GOAL_PREVIEW_COUNT = 3;
@@ -53,9 +61,14 @@ export function GoalManagementScreen({
   const [error, setError] = useState<string | null>(null);
   const [expandedGoalIds, setExpandedGoalIds] = useState<Set<string>>(new Set());
   const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
+  const [showAchieved, setShowAchieved] = useState(false);
   const [detailSubGoal, setDetailSubGoal] = useState<SubGoal | null>(null);
   // 削除確認中の対象と、そこで消えるデータの件数（数え終わるまでは null）
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+
+  // 達成済みは下部の折りたたみへ回し、進行中に集中できるようにする
+  const activeGoals = useMemo(() => goals.filter((g) => g.achieved_at === null), [goals]);
+  const achievedGoals = useMemo(() => goals.filter((g) => g.achieved_at !== null), [goals]);
 
   const allSubGoalIds = useMemo(
     () => goals.flatMap((goal) => goal.sub_goals).map((subGoal) => subGoal.id),
@@ -173,8 +186,30 @@ export function GoalManagementScreen({
 
   /** 記録が溜まった際のスクロール量を抑えるため、既定では先頭数件のみ見せる */
   function visibleSubGoals(goal: GoalWithSubGoals): SubGoal[] {
-    if (expandedGoalIds.has(goal.id)) return goal.sub_goals;
-    return goal.sub_goals.slice(0, SUB_GOAL_PREVIEW_COUNT);
+    // 達成済みの中目標は末尾へ回す。進行中のものが先に目に入るようにするため
+    const ordered = [...goal.sub_goals].sort(
+      (a, b) => Number(a.achieved_at !== null) - Number(b.achieved_at !== null),
+    );
+    if (expandedGoalIds.has(goal.id)) return ordered;
+    return ordered.slice(0, SUB_GOAL_PREVIEW_COUNT);
+  }
+
+  async function handleToggleGoalAchieved(goal: GoalWithSubGoals) {
+    try {
+      await setGoalAchieved(goal.id, goal.achieved_at === null);
+      onGoalsChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "大目標の達成状態の更新に失敗しました。");
+    }
+  }
+
+  async function handleToggleSubGoalAchieved(subGoal: SubGoal) {
+    try {
+      await setSubGoalAchieved(subGoal.id, subGoal.achieved_at === null);
+      onGoalsChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "中目標の達成状態の更新に失敗しました。");
+    }
   }
 
   function toggleExpanded(goalId: string) {
@@ -217,7 +252,53 @@ export function GoalManagementScreen({
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        {goals.map((goal) => (
+        {activeGoals.map((goal) => renderGoal(goal))}
+
+        {achievedGoals.length > 0 && (
+          <View style={styles.achievedSection}>
+            <TouchableOpacity
+              style={styles.achievedHeader}
+              accessibilityRole="button"
+              onPress={() => setShowAchieved((prev) => !prev)}
+            >
+              <Text style={styles.achievedHeaderText}>
+                達成した大目標（{achievedGoals.length}件）{showAchieved ? " ▲" : " ▼"}
+              </Text>
+            </TouchableOpacity>
+            {showAchieved && achievedGoals.map((goal) => renderGoal(goal))}
+          </View>
+        )}
+
+        <View style={styles.addGoalCard}>
+          <Text style={styles.addGoalLabel}>大目標を追加</Text>
+          <Text style={styles.addGoalHint}>
+            並行して追いかけている目標は、分けて管理できます
+          </Text>
+          <View style={styles.addGoalRow}>
+            <TextInput
+              style={styles.addGoalInput}
+              placeholder="例：AWS認定資格を取得する"
+              placeholderTextColor={colors.textMuted}
+              value={newGoalTitle}
+              onChangeText={setNewGoalTitle}
+              onSubmitEditing={handleAddGoal}
+            />
+            <TouchableOpacity
+              style={styles.addSubGoalButton}
+              accessibilityRole="button"
+              accessibilityLabel="大目標を追加する"
+              onPress={handleAddGoal}
+            >
+              <Text style={styles.addSubGoalButtonText}>追加</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </ScrollView>
+  );
+
+  function renderGoal(goal: GoalWithSubGoals) {
+    return (
           <View key={goal.id} style={styles.goalSection}>
             <View style={styles.goalHeaderRow}>
               <TextInput
@@ -230,12 +311,31 @@ export function GoalManagementScreen({
               />
               <TouchableOpacity
                 accessibilityRole="button"
+                accessibilityLabel={
+                  goal.achieved_at === null
+                    ? `大目標「${goal.title}」を達成にする`
+                    : `大目標「${goal.title}」の達成を取り消す`
+                }
+                onPress={() => handleToggleGoalAchieved(goal)}
+              >
+                <Text style={goal.achieved_at === null ? styles.achieveAction : styles.subtleAction}>
+                  {goal.achieved_at === null ? "達成にする" : "達成を取り消す"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
                 accessibilityLabel={`大目標「${goal.title}」を削除`}
                 onPress={() => requestDelete("goal", goal.id, goal.title)}
               >
                 <Text style={styles.subtleAction}>削除</Text>
               </TouchableOpacity>
             </View>
+
+            {goal.achieved_at && (
+              <Text style={styles.achievedBadge}>
+                ✓ {formatAchievedDate(goal.achieved_at)} に達成
+              </Text>
+            )}
 
             {pendingDelete?.kind === "goal" && pendingDelete.id === goal.id && (
               <DeleteConfirm
@@ -263,12 +363,35 @@ export function GoalManagementScreen({
                     {subGoal.is_provisional && <Text style={styles.badge}>仮</Text>}
                     <TouchableOpacity
                       accessibilityRole="button"
+                      accessibilityLabel={
+                        subGoal.achieved_at === null
+                          ? `中目標「${subGoal.title}」を達成にする`
+                          : `中目標「${subGoal.title}」の達成を取り消す`
+                      }
+                      onPress={() => handleToggleSubGoalAchieved(subGoal)}
+                    >
+                      <Text
+                        style={
+                          subGoal.achieved_at === null ? styles.achieveAction : styles.subtleAction
+                        }
+                      >
+                        {subGoal.achieved_at === null ? "達成" : "取消"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      accessibilityRole="button"
                       accessibilityLabel={`中目標「${subGoal.title}」を削除`}
                       onPress={() => requestDelete("subGoal", subGoal.id, subGoal.title)}
                     >
                       <Text style={styles.subtleAction}>削除</Text>
                     </TouchableOpacity>
                   </View>
+
+                  {subGoal.achieved_at && (
+                    <Text style={styles.achievedBadge}>
+                      ✓ {formatAchievedDate(subGoal.achieved_at)} に達成
+                    </Text>
+                  )}
 
                   {pendingDelete?.kind === "subGoal" && pendingDelete.id === subGoal.id && (
                     <DeleteConfirm
@@ -348,35 +471,8 @@ export function GoalManagementScreen({
               </TouchableOpacity>
             </View>
           </View>
-        ))}
-
-        <View style={styles.addGoalCard}>
-          <Text style={styles.addGoalLabel}>大目標を追加</Text>
-          <Text style={styles.addGoalHint}>
-            並行して追いかけている目標は、分けて管理できます
-          </Text>
-          <View style={styles.addGoalRow}>
-            <TextInput
-              style={styles.addGoalInput}
-              placeholder="例：AWS認定資格を取得する"
-              placeholderTextColor={colors.textMuted}
-              value={newGoalTitle}
-              onChangeText={setNewGoalTitle}
-              onSubmitEditing={handleAddGoal}
-            />
-            <TouchableOpacity
-              style={styles.addSubGoalButton}
-              accessibilityRole="button"
-              accessibilityLabel="大目標を追加する"
-              onPress={handleAddGoal}
-            >
-              <Text style={styles.addSubGoalButtonText}>追加</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </ScrollView>
-  );
+    );
+  }
 }
 
 /**
@@ -478,6 +574,37 @@ const styles = StyleSheet.create({
   subtleAction: {
     fontSize: 12,
     color: colors.textMuted,
+  },
+  achieveAction: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  achievedBadge: {
+    alignSelf: "flex-start",
+    fontSize: 11,
+    color: colors.success,
+    backgroundColor: colors.successMuted,
+    borderRadius: radius.sm - 4,
+    paddingVertical: 2,
+    paddingHorizontal: spacing.sm,
+    fontWeight: "600",
+    marginBottom: spacing.sm,
+  },
+  achievedSection: {
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    paddingTop: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  achievedHeader: {
+    alignSelf: "flex-start",
+    marginBottom: spacing.md,
+  },
+  achievedHeaderText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textSecondary,
   },
   detailLink: {
     alignSelf: "flex-start",

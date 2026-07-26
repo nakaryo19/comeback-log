@@ -14,6 +14,7 @@ const subGoal: SubGoal = {
   goal_id: "g-1",
   title: "一次試験対策",
   is_provisional: false,
+  achieved_at: null,
   created_at: "2026-07-01T00:00:00Z",
   updated_at: "2026-07-01T00:00:00Z",
 };

@@ -89,7 +89,9 @@ comeback-log/
 ```
 User
  └─ Goal（大目標・複数可。並行する目標を分けて管理できる）
+      - achieved_at（達成日時・null は未達成。手動でのみ設定し、タスクの完了状況とは連動しない）
      └─ SubGoal（中目標・初回登録時や大目標の追加時に自動生成される「仮の中目標」を含む）
+          - achieved_at（達成日時・Goal と同じ扱い）
          └─ Task（日次タスク：status, date）
 
 EmotionLog

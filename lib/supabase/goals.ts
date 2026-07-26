@@ -105,6 +105,28 @@ export async function renameSubGoal(subGoalId: UUID, title: string): Promise<voi
 }
 
 /**
+ * 大目標の達成状態を切り替える。
+ * 達成はユーザーの手動操作でのみ設定し、タスクの完了状況とは連動させない
+ * （達成条件はタスクの消化とは別物であり、後からタスクを足しても達成が揺らがないようにするため）。
+ */
+export async function setGoalAchieved(goalId: UUID, achieved: boolean): Promise<void> {
+  const { error } = await supabase
+    .from("goals")
+    .update({ achieved_at: achieved ? new Date().toISOString() : null })
+    .eq("id", goalId);
+  if (error) throw error;
+}
+
+/** 中目標の達成状態を切り替える（setGoalAchieved と同じ方針） */
+export async function setSubGoalAchieved(subGoalId: UUID, achieved: boolean): Promise<void> {
+  const { error } = await supabase
+    .from("sub_goals")
+    .update({ achieved_at: achieved ? new Date().toISOString() : null })
+    .eq("id", subGoalId);
+  if (error) throw error;
+}
+
+/**
  * 大目標を削除する。
  * 配下の中目標・タスク・感情ログもDBの on delete cascade で同時に消える。
  * 呼び出し側は削除前に、消える感情ログの件数を必ずユーザーに提示すること。
@@ -130,9 +152,19 @@ export async function createSubGoal(goalId: UUID, title: string): Promise<SubGoa
   return data;
 }
 
-/** 未指定時にタスクを紐付ける中目標を決める：直近の仮の中目標、無ければ直近の中目標 */
+/**
+ * 未指定時にタスクを紐付ける中目標を決める：直近の仮の中目標、無ければ直近の中目標。
+ * 達成済みの大目標・中目標は候補から除く（終わった目標に新しいタスクは足さないため）。
+ * ただし全部が達成済みなら、行き先が無くなるのを避けて達成済みも候補に戻す。
+ */
 export function findDefaultSubGoalId(goals: GoalWithSubGoals[]): UUID | null {
-  const subGoals = goals.flatMap((goal) => goal.sub_goals);
+  const activeSubGoals = goals
+    .filter((goal) => goal.achieved_at === null)
+    .flatMap((goal) => goal.sub_goals)
+    .filter((subGoal) => subGoal.achieved_at === null);
+
+  const subGoals =
+    activeSubGoals.length > 0 ? activeSubGoals : goals.flatMap((goal) => goal.sub_goals);
   const byNewest = (a: SubGoal, b: SubGoal) =>
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 

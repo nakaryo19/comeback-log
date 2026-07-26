@@ -9,6 +9,7 @@ function makeSubGoal(overrides: Partial<SubGoal> & Pick<SubGoal, "id" | "created
     goal_id: "goal-1",
     title: "中目標",
     is_provisional: false,
+    achieved_at: null,
     updated_at: overrides.created_at,
     ...overrides,
   };
@@ -19,6 +20,7 @@ function makeGoal(id: string, subGoals: SubGoal[]): GoalWithSubGoals {
     id,
     user_id: "user-1",
     title: "大目標",
+    achieved_at: null,
     created_at: "2026-07-01T00:00:00Z",
     updated_at: "2026-07-01T00:00:00Z",
     sub_goals: subGoals,
@@ -73,5 +75,41 @@ describe("findDefaultSubGoalId", () => {
       ]),
     ];
     expect(findDefaultSubGoalId(goals)).toBe("sg-b");
+  });
+});
+
+describe("findDefaultSubGoalId：達成済みの扱い", () => {
+  test("達成済みの中目標は候補から外す", () => {
+    const goals = [
+      makeGoal("g-1", [
+        { ...makeSubGoal({ id: "sg-1", created_at: "2026-07-10T00:00:00Z" }), achieved_at: "2026-07-20T00:00:00Z" },
+        makeSubGoal({ id: "sg-2", created_at: "2026-07-05T00:00:00Z" }),
+      ]),
+    ];
+    // sg-1 の方が新しいが、達成済みなので sg-2 が選ばれる
+    expect(findDefaultSubGoalId(goals)).toBe("sg-2");
+  });
+
+  test("達成済みの大目標の配下も候補から外す", () => {
+    const achievedGoal = {
+      ...makeGoal("g-1", [makeSubGoal({ id: "sg-1", created_at: "2026-07-10T00:00:00Z" })]),
+      achieved_at: "2026-07-20T00:00:00Z",
+    };
+    const activeGoal = makeGoal("g-2", [
+      makeSubGoal({ id: "sg-2", created_at: "2026-07-05T00:00:00Z" }),
+    ]);
+    expect(findDefaultSubGoalId([achievedGoal, activeGoal])).toBe("sg-2");
+  });
+
+  test("すべて達成済みなら、行き先が無くならないよう達成済みも候補に戻す", () => {
+    const goals = [
+      {
+        ...makeGoal("g-1", [
+          { ...makeSubGoal({ id: "sg-1", created_at: "2026-07-10T00:00:00Z" }), achieved_at: "2026-07-20T00:00:00Z" },
+        ]),
+        achieved_at: "2026-07-20T00:00:00Z",
+      },
+    ];
+    expect(findDefaultSubGoalId(goals)).toBe("sg-1");
   });
 });
