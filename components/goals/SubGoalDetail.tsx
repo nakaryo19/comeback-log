@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { fetchTasksForSubGoal } from "../../lib/supabase/tasks";
 import type { SubGoal, Task, TaskStatus } from "../../types/database";
-import { colors, radius, shadow, spacing } from "../../lib/theme";
+import { colors, hitSlop, radius, shadow, spacing } from "../../lib/theme";
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
   todo: "未完了",
@@ -44,7 +44,7 @@ export function SubGoalDetail({ subGoal, onBack }: { subGoal: SubGoal; onBack: (
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
       <View style={styles.content}>
-        <TouchableOpacity onPress={onBack} style={styles.backLink}>
+        <TouchableOpacity hitSlop={hitSlop} onPress={onBack} style={styles.backLink}>
           <Text style={styles.navLink}>← 目標管理へ</Text>
         </TouchableOpacity>
 

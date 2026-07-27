@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../../lib/supabase/auth-context";
-import { colors, radius, shadow, spacing } from "../../lib/theme";
+import { colors, hitSlop, radius, shadow, spacing } from "../../lib/theme";
 
 type Mode = "signIn" | "signUp" | "reset";
 
@@ -109,12 +109,13 @@ export function AuthScreen() {
         </TouchableOpacity>
 
         {mode === "signIn" && (
-          <TouchableOpacity style={styles.switchButton} onPress={() => switchTo("reset")}>
+          <TouchableOpacity hitSlop={hitSlop} style={styles.switchButton} onPress={() => switchTo("reset")}>
             <Text style={styles.switchButtonText}>パスワードを忘れた場合</Text>
           </TouchableOpacity>
         )}
 
         <TouchableOpacity
+          hitSlop={hitSlop}
           style={styles.switchButton}
           onPress={() => switchTo(mode === "signIn" ? "signUp" : "signIn")}
         >
