@@ -3,25 +3,55 @@ import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-nativ
 import { useAuth } from "../../lib/supabase/auth-context";
 import { colors, radius, shadow, spacing } from "../../lib/theme";
 
-type Mode = "signIn" | "signUp";
+type Mode = "signIn" | "signUp" | "reset";
+
+const TITLES: Record<Mode, string> = {
+  signIn: "ログイン",
+  signUp: "新規登録",
+  reset: "パスワードの再設定",
+};
 
 export function AuthScreen() {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, sendPasswordReset, recoveryLinkError } = useAuth();
   const [mode, setMode] = useState<Mode>("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const needsPassword = mode !== "reset";
+  const canSubmit = !submitting && !!email && (!needsPassword || !!password);
+
+  function switchTo(next: Mode) {
+    setError(null);
+    setNotice(null);
+    setMode(next);
+  }
 
   async function handleSubmit() {
     setError(null);
+    setNotice(null);
     setSubmitting(true);
+
+    if (mode === "reset") {
+      const { error: resetError } = await sendPasswordReset(email);
+      setSubmitting(false);
+      if (resetError) {
+        setError(resetError);
+        return;
+      }
+      // 登録の有無を答えると、アドレスが登録済みかを外部から探れてしまうため、結果に関わらず同じ文面にする
+      setNotice(
+        "登録されているアドレスであれば、再設定用のリンクを送信しました。メールをご確認ください。",
+      );
+      return;
+    }
+
     const { error: authError } =
       mode === "signIn" ? await signIn(email, password) : await signUp(email, password);
     setSubmitting(false);
-    if (authError) {
-      setError(authError);
-    }
+    if (authError) setError(authError);
   }
 
   return (
@@ -29,7 +59,15 @@ export function AuthScreen() {
       <View style={styles.card}>
         <Text style={styles.logo}>挽回ログ</Text>
         <Text style={styles.tagline}>もう一度、自分のペースで。</Text>
-        <Text style={styles.subtitle}>{mode === "signIn" ? "ログイン" : "新規登録"}</Text>
+        <Text style={styles.subtitle}>{TITLES[mode]}</Text>
+
+        {mode === "reset" && (
+          <Text style={styles.description}>
+            登録したメールアドレスに、パスワード再設定用のリンクを送ります。
+          </Text>
+        )}
+
+        {recoveryLinkError && <Text style={styles.error}>{recoveryLinkError}</Text>}
 
         <TextInput
           style={styles.input}
@@ -40,33 +78,45 @@ export function AuthScreen() {
           value={email}
           onChangeText={setEmail}
         />
-        <TextInput
-          style={styles.input}
-          placeholder="パスワード"
-          placeholderTextColor={colors.textMuted}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
+        {needsPassword && (
+          <TextInput
+            style={styles.input}
+            placeholder="パスワード"
+            placeholderTextColor={colors.textMuted}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+        )}
 
         {error && <Text style={styles.error}>{error}</Text>}
+        {notice && <Text style={styles.notice}>{notice}</Text>}
 
         <TouchableOpacity
-          style={[styles.submitButton, (submitting || !email || !password) && styles.submitButtonDisabled]}
+          style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
           onPress={handleSubmit}
-          disabled={submitting || !email || !password}
+          disabled={!canSubmit}
         >
           <Text style={styles.submitButtonText}>
-            {submitting ? "処理中..." : mode === "signIn" ? "ログイン" : "登録する"}
+            {submitting
+              ? "処理中..."
+              : mode === "signIn"
+                ? "ログイン"
+                : mode === "signUp"
+                  ? "登録する"
+                  : "再設定リンクを送る"}
           </Text>
         </TouchableOpacity>
 
+        {mode === "signIn" && (
+          <TouchableOpacity style={styles.switchButton} onPress={() => switchTo("reset")}>
+            <Text style={styles.switchButtonText}>パスワードを忘れた場合</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={styles.switchButton}
-          onPress={() => {
-            setError(null);
-            setMode(mode === "signIn" ? "signUp" : "signIn");
-          }}
+          onPress={() => switchTo(mode === "signIn" ? "signUp" : "signIn")}
         >
           <Text style={styles.switchButtonText}>
             {mode === "signIn" ? "アカウントを作成する" : "ログイン画面に戻る"}
@@ -123,11 +173,25 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     backgroundColor: colors.background,
   },
+  description: {
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: "center",
+    color: colors.textMuted,
+    marginBottom: spacing.lg,
+  },
   error: {
     color: colors.danger,
     marginBottom: spacing.md,
     textAlign: "center",
     fontSize: 13,
+  },
+  notice: {
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    textAlign: "center",
+    fontSize: 13,
+    lineHeight: 20,
   },
   submitButton: {
     backgroundColor: colors.primary,
