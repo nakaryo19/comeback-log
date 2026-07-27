@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../../lib/supabase/auth-context";
-import { colors, radius, shadow, spacing } from "../../lib/theme";
+import { colors, hitSlop, radius, shadow, spacing } from "../../lib/theme";
 
 /** Supabase 側の既定値に合わせている */
 const MIN_PASSWORD_LENGTH = 6;
@@ -73,7 +73,7 @@ export function PasswordRecoveryScreen() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.switchButton} onPress={dismissRecovery}>
+        <TouchableOpacity hitSlop={hitSlop} style={styles.switchButton} onPress={dismissRecovery}>
           <Text style={styles.switchButtonText}>やめてログイン画面に戻る</Text>
         </TouchableOpacity>
       </View>

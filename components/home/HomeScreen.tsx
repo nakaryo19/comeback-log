@@ -15,7 +15,7 @@ import type { ISODateString, Task, TaskStatus } from "../../types/database";
 import { WeeklySummary } from "./WeeklySummary";
 import { EmotionLogForm } from "./EmotionLogForm";
 import { DateNavigator } from "./DateNavigator";
-import { colors, radius, shadow, spacing } from "../../lib/theme";
+import { colors, hitSlop, radius, shadow, spacing } from "../../lib/theme";
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
   todo: "未完了",
@@ -208,7 +208,7 @@ export function HomeScreen({
                   >
                     <Text style={styles.editSaveButtonText}>保存</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setEditingTaskId(null)}>
+                  <TouchableOpacity hitSlop={hitSlop} onPress={() => setEditingTaskId(null)}>
                     <Text style={styles.subtleAction}>やめる</Text>
                   </TouchableOpacity>
                 </View>
@@ -217,10 +217,10 @@ export function HomeScreen({
                   <Text style={styles.taskTitle}>{task.title}</Text>
                   {loggedTaskIds.has(task.id) && <Text style={styles.loggedBadge}>記録済み</Text>}
                   <View style={styles.taskActions}>
-                    <TouchableOpacity onPress={() => startEditing(task)}>
+                    <TouchableOpacity hitSlop={hitSlop} onPress={() => startEditing(task)}>
                       <Text style={styles.subtleAction}>編集</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setDeletingTaskId(task.id)}>
+                    <TouchableOpacity hitSlop={hitSlop} onPress={() => setDeletingTaskId(task.id)}>
                       <Text style={styles.subtleAction}>削除</Text>
                     </TouchableOpacity>
                   </View>
@@ -240,7 +240,7 @@ export function HomeScreen({
                     >
                       <Text style={styles.confirmDeleteButtonText}>削除する</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setDeletingTaskId(null)}>
+                    <TouchableOpacity hitSlop={hitSlop} onPress={() => setDeletingTaskId(null)}>
                       <Text style={styles.subtleAction}>やめる</Text>
                     </TouchableOpacity>
                   </View>
@@ -252,6 +252,7 @@ export function HomeScreen({
                   const activeColor = STATUS_ACTIVE_COLOR[status];
                   return (
                     <TouchableOpacity
+                      hitSlop={hitSlop}
                       key={status}
                       style={[
                         styles.statusButton,

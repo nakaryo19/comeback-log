@@ -21,7 +21,7 @@ import { countEmotionLogsForTasks } from "../../lib/supabase/emotionLogs";
 import { useAuth } from "../../lib/supabase/auth-context";
 import { SubGoalDetail } from "./SubGoalDetail";
 import type { SubGoal, Task } from "../../types/database";
-import { colors, radius, shadow, spacing } from "../../lib/theme";
+import { colors, hitSlop, radius, shadow, spacing } from "../../lib/theme";
 
 /** 達成日時（ISO文字列）を「7/26」形式にする */
 function formatAchievedDate(isoDateTime: string): string {
@@ -245,7 +245,7 @@ export function GoalManagementScreen({
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
       <View style={styles.content}>
-        <TouchableOpacity onPress={onBack} style={styles.backLink}>
+        <TouchableOpacity hitSlop={hitSlop} onPress={onBack} style={styles.backLink}>
           <Text style={styles.navLink}>← ホームへ</Text>
         </TouchableOpacity>
         <Text style={styles.title}>目標管理</Text>
@@ -257,6 +257,7 @@ export function GoalManagementScreen({
         {achievedGoals.length > 0 && (
           <View style={styles.achievedSection}>
             <TouchableOpacity
+              hitSlop={hitSlop}
               style={styles.achievedHeader}
               accessibilityRole="button"
               onPress={() => setShowAchieved((prev) => !prev)}
@@ -310,6 +311,7 @@ export function GoalManagementScreen({
                 onSubmitEditing={() => handleRenameGoal(goal)}
               />
               <TouchableOpacity
+                hitSlop={hitSlop}
                 accessibilityRole="button"
                 accessibilityLabel={
                   goal.achieved_at === null
@@ -323,6 +325,7 @@ export function GoalManagementScreen({
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
+                hitSlop={hitSlop}
                 accessibilityRole="button"
                 accessibilityLabel={`大目標「${goal.title}」を削除`}
                 onPress={() => requestDelete("goal", goal.id, goal.title)}
@@ -362,6 +365,7 @@ export function GoalManagementScreen({
                     />
                     {subGoal.is_provisional && <Text style={styles.badge}>仮</Text>}
                     <TouchableOpacity
+                      hitSlop={hitSlop}
                       accessibilityRole="button"
                       accessibilityLabel={
                         subGoal.achieved_at === null
@@ -379,6 +383,7 @@ export function GoalManagementScreen({
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
+                      hitSlop={hitSlop}
                       accessibilityRole="button"
                       accessibilityLabel={`中目標「${subGoal.title}」を削除`}
                       onPress={() => requestDelete("subGoal", subGoal.id, subGoal.title)}
@@ -412,6 +417,7 @@ export function GoalManagementScreen({
                             <View style={styles.moveRow}>
                               {otherSubGoals.map((target) => (
                                 <TouchableOpacity
+                                  hitSlop={hitSlop}
                                   key={target.id}
                                   style={styles.moveChip}
                                   onPress={() => handleMoveTask(task, target.id)}
@@ -428,6 +434,7 @@ export function GoalManagementScreen({
 
                   {(taskCounts[subGoal.id] ?? tasks.length) > TASK_PREVIEW_COUNT && (
                     <TouchableOpacity
+                      hitSlop={hitSlop}
                       style={styles.detailLink}
                       accessibilityRole="button"
                       accessibilityLabel={`中目標「${subGoal.title}」のタスクをすべて見る`}
@@ -443,7 +450,7 @@ export function GoalManagementScreen({
             })}
 
             {goal.sub_goals.length > SUB_GOAL_PREVIEW_COUNT && (
-              <TouchableOpacity style={styles.expandButton} onPress={() => toggleExpanded(goal.id)}>
+              <TouchableOpacity hitSlop={hitSlop} style={styles.expandButton} onPress={() => toggleExpanded(goal.id)}>
                 <Text style={styles.expandButtonText}>
                   {expandedGoalIds.has(goal.id)
                     ? "中目標を折りたたむ"
@@ -514,7 +521,7 @@ function DeleteConfirm({
         >
           <Text style={styles.confirmDeleteButtonText}>削除する</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={onCancel}>
+        <TouchableOpacity hitSlop={hitSlop} onPress={onCancel}>
           <Text style={styles.subtleAction}>やめる</Text>
         </TouchableOpacity>
       </View>

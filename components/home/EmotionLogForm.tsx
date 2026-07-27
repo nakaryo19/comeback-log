@@ -2,7 +2,7 @@ import { useState } from "react";
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { createEmotionLog } from "../../lib/supabase/emotionLogs";
 import type { EmotionLog, EmotionScore, UUID } from "../../types/database";
-import { colors, radius, spacing } from "../../lib/theme";
+import { colors, hitSlop, radius, spacing } from "../../lib/theme";
 
 const SCORES: EmotionScore[] = [1, 2, 3, 4, 5];
 const SCORE_EMOJI: Record<EmotionScore, string> = {
@@ -86,7 +86,7 @@ export function EmotionLogForm({
           onChangeText={setFreeText}
         />
       ) : (
-        <TouchableOpacity onPress={() => setExpanded(true)}>
+        <TouchableOpacity hitSlop={hitSlop} onPress={() => setExpanded(true)}>
           <Text style={styles.expandLink}>もう少し書く</Text>
         </TouchableOpacity>
       )}
@@ -94,7 +94,7 @@ export function EmotionLogForm({
       {error && <Text style={styles.error}>{error}</Text>}
 
       <View style={styles.actionRow}>
-        <TouchableOpacity onPress={onSkip}>
+        <TouchableOpacity hitSlop={hitSlop} onPress={onSkip}>
           <Text style={styles.skipLink}>あとで</Text>
         </TouchableOpacity>
         <TouchableOpacity

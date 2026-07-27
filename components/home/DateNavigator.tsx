@@ -1,7 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { formatDateLabel, relativeDayLabel, shiftDateString } from "../../lib/date";
 import type { ISODateString } from "../../types/database";
-import { colors, radius, spacing } from "../../lib/theme";
+import { colors, hitSlop, radius, spacing } from "../../lib/theme";
 
 /** ホーム画面の日付切り替え導線。過去・未来のどちらへも移動できる */
 export function DateNavigator({
@@ -44,7 +44,7 @@ export function DateNavigator({
       </View>
 
       {!isToday && (
-        <TouchableOpacity style={styles.todayLink} onPress={() => onChangeDate(today)}>
+        <TouchableOpacity hitSlop={hitSlop} style={styles.todayLink} onPress={() => onChangeDate(today)}>
           <Text style={styles.todayLinkText}>今日へ戻る</Text>
         </TouchableOpacity>
       )}
