@@ -2,11 +2,12 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 import { AuthProvider, useAuth } from './lib/supabase/auth-context';
 import { AuthScreen } from './components/auth/AuthScreen';
+import { PasswordRecoveryScreen } from './components/auth/PasswordRecoveryScreen';
 import { MainApp } from './components/MainApp';
 import { colors } from './lib/theme';
 
 function AppContent() {
-  const { session, loading } = useAuth();
+  const { session, loading, recovering } = useAuth();
 
   if (loading) {
     return (
@@ -17,9 +18,11 @@ function AppContent() {
     );
   }
 
+  // 再設定リンクを踏むと一時的にセッションが張られる。そのままアプリに入れず、
+  // 新しいパスワードを決めてもらうまでは復旧画面を優先する。
   return (
     <>
-      {session ? <MainApp /> : <AuthScreen />}
+      {recovering ? <PasswordRecoveryScreen /> : session ? <MainApp /> : <AuthScreen />}
       <StatusBar style="auto" />
     </>
   );
