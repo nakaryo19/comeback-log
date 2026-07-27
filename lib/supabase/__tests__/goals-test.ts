@@ -1,4 +1,4 @@
-import { findDefaultSubGoalId, type GoalWithSubGoals } from "../goals";
+import { findDefaultSubGoalId, selectableSubGoals, type GoalWithSubGoals } from "../goals";
 import type { SubGoal } from "../../../types/database";
 
 // goals.ts が import する Supabase クライアントは環境変数を要求するため、モックで置き換える
@@ -75,6 +75,51 @@ describe("findDefaultSubGoalId", () => {
       ]),
     ];
     expect(findDefaultSubGoalId(goals)).toBe("sg-b");
+  });
+});
+
+describe("selectableSubGoals", () => {
+  const ACHIEVED = "2026-07-20T00:00:00Z";
+
+  test("達成済みの中目標を除く", () => {
+    const goals = [
+      makeGoal("g-1", [
+        { ...makeSubGoal({ id: "sg-1", created_at: "2026-07-01T00:00:00Z" }), achieved_at: ACHIEVED },
+        makeSubGoal({ id: "sg-2", created_at: "2026-07-05T00:00:00Z" }),
+      ]),
+    ];
+    expect(selectableSubGoals(goals).flatMap((g) => g.sub_goals.map((s) => s.id))).toEqual(["sg-2"]);
+  });
+
+  test("達成済みの大目標を丸ごと除く", () => {
+    const achieved = {
+      ...makeGoal("g-1", [makeSubGoal({ id: "sg-1", created_at: "2026-07-01T00:00:00Z" })]),
+      achieved_at: ACHIEVED,
+    };
+    const active = makeGoal("g-2", [makeSubGoal({ id: "sg-2", created_at: "2026-07-05T00:00:00Z" })]);
+    expect(selectableSubGoals([achieved, active]).map((g) => g.id)).toEqual(["g-2"]);
+  });
+
+  test("中目標がすべて達成済みになった大目標は残さない", () => {
+    const goals = [
+      makeGoal("g-1", [
+        { ...makeSubGoal({ id: "sg-1", created_at: "2026-07-01T00:00:00Z" }), achieved_at: ACHIEVED },
+      ]),
+      makeGoal("g-2", [makeSubGoal({ id: "sg-2", created_at: "2026-07-05T00:00:00Z" })]),
+    ];
+    expect(selectableSubGoals(goals).map((g) => g.id)).toEqual(["g-2"]);
+  });
+
+  test("すべて達成済みなら、行き先が無くならないよう元のゴールを返す", () => {
+    const goals = [
+      {
+        ...makeGoal("g-1", [
+          { ...makeSubGoal({ id: "sg-1", created_at: "2026-07-01T00:00:00Z" }), achieved_at: ACHIEVED },
+        ]),
+        achieved_at: ACHIEVED,
+      },
+    ];
+    expect(selectableSubGoals(goals).flatMap((g) => g.sub_goals.map((s) => s.id))).toEqual(["sg-1"]);
   });
 });
 

@@ -25,7 +25,11 @@ jest.mock("../../../lib/supabase/emotionLogs", () => ({
   fetchEmotionScoresForTasks: jest.fn(),
   createEmotionLog: jest.fn(),
 }));
+// selectableSubGoals は純粋関数なので実物を使う（候補の絞り込み自体を検証したいため）。
+// 実物の goals.ts は Supabase クライアントを import するので、client 側をモックしておく。
+jest.mock("../../../lib/supabase/client", () => ({ supabase: {} }));
 jest.mock("../../../lib/supabase/goals", () => ({
+  ...jest.requireActual("../../../lib/supabase/goals"),
   findDefaultSubGoalId: jest.fn(() => "sg-1"),
 }));
 
@@ -326,6 +330,80 @@ describe("<HomeScreen /> タスク追加時の中目標選択", () => {
 
     expect(await screen.findByText("公務員試験に合格する / ステップ1")).toBeTruthy();
     expect(screen.getByText("簿記2級に合格する / 商業簿記")).toBeTruthy();
+  });
+});
+
+describe("<HomeScreen /> 達成済みの中目標は選べない", () => {
+  const ACHIEVED = "2026-07-20T00:00:00Z";
+
+  test("達成済みの中目標は選択肢に出さない", async () => {
+    const withAchieved: GoalWithSubGoals[] = [
+      {
+        ...goals[0],
+        sub_goals: [
+          makeSubGoal("sg-1", "ステップ1", true),
+          { ...makeSubGoal("sg-2", "一次試験対策"), achieved_at: ACHIEVED },
+          makeSubGoal("sg-3", "二次試験対策"),
+        ],
+      },
+    ];
+    await renderHome(withAchieved);
+    await screen.findByText("追加先の中目標");
+
+    expect(screen.queryByText("一次試験対策")).toBeNull();
+    expect(screen.getByText("二次試験対策")).toBeTruthy();
+  });
+
+  test("達成済みの大目標は配下ごと選択肢に出さない", async () => {
+    const twoGoals: GoalWithSubGoals[] = [
+      { ...goals[0], sub_goals: [makeSubGoal("sg-1", "ステップ1", true)] },
+      {
+        ...goals[0],
+        id: "g-2",
+        title: "簿記2級に合格する",
+        achieved_at: ACHIEVED,
+        sub_goals: [makeSubGoal("sg-9", "商業簿記")],
+      },
+    ];
+    await renderHome(twoGoals);
+    await screen.findByPlaceholderText("今日のタスクを追加");
+
+    expect(screen.queryByText("商業簿記")).toBeNull();
+    // 選べる大目標が1つだけになるので、大目標名の前置きも消える
+    expect(screen.queryByText("公務員試験に合格する / ステップ1")).toBeNull();
+  });
+
+  test("残る中目標が1つだけになれば選択UI自体を出さない", async () => {
+    const withAchieved: GoalWithSubGoals[] = [
+      {
+        ...goals[0],
+        sub_goals: [
+          makeSubGoal("sg-1", "ステップ1", true),
+          { ...makeSubGoal("sg-2", "一次試験対策"), achieved_at: ACHIEVED },
+        ],
+      },
+    ];
+    await renderHome(withAchieved);
+    await screen.findByPlaceholderText("今日のタスクを追加");
+
+    expect(screen.queryByText("追加先の中目標")).toBeNull();
+  });
+
+  test("すべて達成済みなら、タスクの行き先が無くならないよう候補に戻す", async () => {
+    const allAchieved: GoalWithSubGoals[] = [
+      {
+        ...goals[0],
+        achieved_at: ACHIEVED,
+        sub_goals: [
+          { ...makeSubGoal("sg-1", "ステップ1", true), achieved_at: ACHIEVED },
+          { ...makeSubGoal("sg-2", "一次試験対策"), achieved_at: ACHIEVED },
+        ],
+      },
+    ];
+    await renderHome(allAchieved);
+
+    expect(await screen.findByText("追加先の中目標")).toBeTruthy();
+    expect(screen.getByText("一次試験対策")).toBeTruthy();
   });
 });
 

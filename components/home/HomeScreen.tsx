@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import type { GoalWithSubGoals } from "../../lib/supabase/goals";
-import { findDefaultSubGoalId } from "../../lib/supabase/goals";
+import { findDefaultSubGoalId, selectableSubGoals } from "../../lib/supabase/goals";
 import {
   createTask,
   deleteTask,
@@ -59,17 +59,17 @@ export function HomeScreen({
   const eyebrow = isToday ? "今日のログ" : isFuture ? "これからの予定" : "過去のログ";
   const defaultSubGoalId = findDefaultSubGoalId(goals);
 
+  // 達成済みの大目標・中目標は選択肢に出さない（既定の割り当て先と同じ絞り込みを使う）。
   // 大目標が複数ある場合のみ「大目標 / 中目標」と表示して区別できるようにする
-  const subGoalOptions = useMemo(
-    () =>
-      goals.flatMap((goal) =>
-        goal.sub_goals.map((subGoal) => ({
-          id: subGoal.id,
-          label: goals.length > 1 ? `${goal.title} / ${subGoal.title}` : subGoal.title,
-        })),
-      ),
-    [goals],
-  );
+  const subGoalOptions = useMemo(() => {
+    const selectable = selectableSubGoals(goals);
+    return selectable.flatMap((goal) =>
+      goal.sub_goals.map((subGoal) => ({
+        id: subGoal.id,
+        label: selectable.length > 1 ? `${goal.title} / ${subGoal.title}` : subGoal.title,
+      })),
+    );
+  }, [goals]);
 
   // 未選択、または選択中の中目標が消えた場合は「直近の仮中目標」に自動割り当てする（要件定義書 4-1）
   const targetSubGoalId =

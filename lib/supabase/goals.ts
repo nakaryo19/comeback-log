@@ -153,18 +153,31 @@ export async function createSubGoal(goalId: UUID, title: string): Promise<SubGoa
 }
 
 /**
+ * 新しいタスクを紐付けられる中目標を、大目標ごとにまとめて返す。
+ * 達成済みの大目標・中目標は除く（終わった目標に新しいタスクは足さないため）。
+ * ただし全部が達成済みなら、タスクの行き先が無くなるのを避けて達成済みも候補に戻す。
+ *
+ * 既定の割り当て先（findDefaultSubGoalId）と選択UIの選択肢は必ずこの関数を通すこと。
+ * 片方だけが達成済みを除くと、UIに出ていない中目標へタスクが入る食い違いが起きる。
+ */
+export function selectableSubGoals(goals: GoalWithSubGoals[]): GoalWithSubGoals[] {
+  const active = goals
+    .filter((goal) => goal.achieved_at === null)
+    .map((goal) => ({
+      ...goal,
+      sub_goals: goal.sub_goals.filter((subGoal) => subGoal.achieved_at === null),
+    }))
+    .filter((goal) => goal.sub_goals.length > 0);
+
+  return active.length > 0 ? active : goals;
+}
+
+/**
  * 未指定時にタスクを紐付ける中目標を決める：直近の仮の中目標、無ければ直近の中目標。
- * 達成済みの大目標・中目標は候補から除く（終わった目標に新しいタスクは足さないため）。
- * ただし全部が達成済みなら、行き先が無くなるのを避けて達成済みも候補に戻す。
+ * 候補の絞り込みは selectableSubGoals に従う。
  */
 export function findDefaultSubGoalId(goals: GoalWithSubGoals[]): UUID | null {
-  const activeSubGoals = goals
-    .filter((goal) => goal.achieved_at === null)
-    .flatMap((goal) => goal.sub_goals)
-    .filter((subGoal) => subGoal.achieved_at === null);
-
-  const subGoals =
-    activeSubGoals.length > 0 ? activeSubGoals : goals.flatMap((goal) => goal.sub_goals);
+  const subGoals = selectableSubGoals(goals).flatMap((goal) => goal.sub_goals);
   const byNewest = (a: SubGoal, b: SubGoal) =>
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 
