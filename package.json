@@ -35,6 +35,8 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "//testTimeout": "各ファイルの最初の render に React Native のモジュール読み込みコストが乗り、既定の5秒ではCIランナー上で足りない（2件目以降は数十msで終わる）。個々のテストが遅いわけではないため、上限だけを引き上げている。",
+    "testTimeout": 20000,
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg)"
     ]
