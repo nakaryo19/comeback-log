@@ -13,6 +13,7 @@ import { fetchLoggedTaskIds } from "../../lib/supabase/emotionLogs";
 import { formatShortDate, todayDateString } from "../../lib/date";
 import type { ISODateString, Task, TaskStatus } from "../../types/database";
 import { WeeklySummary } from "./WeeklySummary";
+import { DailyTrendChart } from "./DailyTrendChart";
 import { EmotionLogForm } from "./EmotionLogForm";
 import { DateNavigator } from "./DateNavigator";
 import { colors, hitSlop, radius, shadow, spacing } from "../../lib/theme";
@@ -179,6 +180,8 @@ export function HomeScreen({
         </View>
 
         <DateNavigator date={selectedDate} today={today} onChangeDate={handleChangeDate} />
+
+        <DailyTrendChart refreshKey={summaryRefreshKey} />
 
         <WeeklySummary refreshKey={summaryRefreshKey} />
 

@@ -2,6 +2,8 @@ import {
   currentWeekDateRange,
   formatDateLabel,
   formatShortDate,
+  recentDateStrings,
+  weekdayLabel,
   relativeDayLabel,
   shiftDateString,
   todayDateString,
@@ -103,5 +105,48 @@ describe("relativeDayLabel", () => {
     expect(relativeDayLabel("2026-07-26")).toBe("今日");
     expect(relativeDayLabel("2026-07-25")).toBe("昨日");
     jest.useRealTimers();
+  });
+});
+
+describe("recentDateStrings", () => {
+  test("今日を終端とする直近N日を、古い順に返す", () => {
+    expect(recentDateStrings(7, "2026-07-26")).toEqual([
+      "2026-07-20",
+      "2026-07-21",
+      "2026-07-22",
+      "2026-07-23",
+      "2026-07-24",
+      "2026-07-25",
+      "2026-07-26",
+    ]);
+  });
+
+  test("月をまたいでも正しく遡る", () => {
+    expect(recentDateStrings(3, "2026-08-02")).toEqual([
+      "2026-07-31",
+      "2026-08-01",
+      "2026-08-02",
+    ]);
+  });
+
+  test("基準日を省略すると今日を終端にする", () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 6, 26, 10, 0, 0));
+    const days = recentDateStrings(7);
+    expect(days).toHaveLength(7);
+    expect(days[6]).toBe("2026-07-26");
+    jest.useRealTimers();
+  });
+});
+
+describe("weekdayLabel", () => {
+  test("曜日1文字を返す", () => {
+    expect(weekdayLabel("2026-07-26")).toBe("日");
+    expect(weekdayLabel("2026-07-27")).toBe("月");
+    expect(weekdayLabel("2026-07-28")).toBe("火");
+  });
+
+  test("UTC解釈による前日へのズレが起きない", () => {
+    // new Date("2026-07-26") はUTC0時と解釈され、日本時間では前日（土）になってしまう
+    expect(weekdayLabel("2026-07-26")).not.toBe("土");
   });
 });

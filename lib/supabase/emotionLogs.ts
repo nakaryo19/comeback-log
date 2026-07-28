@@ -12,6 +12,25 @@ export async function fetchEmotionScoresForTasks(taskIds: UUID[]): Promise<Emoti
   return (data ?? []).map((row) => row.score);
 }
 
+/**
+ * 指定タスク群の感情スコアを task_id 付きで取得する（相関散布図用）。
+ *
+ * fetchEmotionScoresForTasks はスコアだけを返すため、「どの日のスコアか」が分からない。
+ * 散布図は日単位で集計する必要があるので、task_id を残してタスクの日付と突き合わせられるようにする。
+ * tag / free_text は取得しない。可視化に不要な自由記述を、必要のない場所へ運ばないため。
+ */
+export async function fetchEmotionScoresByTaskId(
+  taskIds: UUID[],
+): Promise<Map<UUID, EmotionScore>> {
+  if (taskIds.length === 0) return new Map();
+  const { data, error } = await supabase
+    .from("emotion_logs")
+    .select("task_id, score")
+    .in("task_id", taskIds);
+  if (error) throw error;
+  return new Map((data ?? []).map((row) => [row.task_id, row.score]));
+}
+
 /** 指定タスク群のうち、すでに感情ログが記録済みのtask_idを取得する */
 export async function fetchLoggedTaskIds(taskIds: UUID[]): Promise<Set<UUID>> {
   if (taskIds.length === 0) return new Set();
