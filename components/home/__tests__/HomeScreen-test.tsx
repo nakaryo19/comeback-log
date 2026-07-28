@@ -23,6 +23,7 @@ jest.mock("../../../lib/supabase/tasks", () => ({
 jest.mock("../../../lib/supabase/emotionLogs", () => ({
   fetchLoggedTaskIds: jest.fn(),
   fetchEmotionScoresForTasks: jest.fn(),
+  fetchEmotionScoresByTaskId: jest.fn(() => Promise.resolve(new Map())),
   createEmotionLog: jest.fn(),
 }));
 // selectableSubGoals は純粋関数なので実物を使う（候補の絞り込み自体を検証したいため）。

@@ -36,6 +36,11 @@ export function formatDateLabel(date: ISODateString): string {
   return `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAY_LABELS[d.getDay()]}）`;
 }
 
+/** 曜日だけのラベル（例: "金"）。グラフの横軸など、幅を取れない場所で使う */
+export function weekdayLabel(date: ISODateString): string {
+  return WEEKDAY_LABELS[parseDateString(date).getDay()];
+}
+
 /** 見出し用の短い日付ラベル（例: "7/24"） */
 export function formatShortDate(date: ISODateString): string {
   const d = parseDateString(date);
@@ -54,6 +59,14 @@ export function relativeDayLabel(
   if (date === shiftDateString(today, -1)) return "昨日";
   if (date === shiftDateString(today, 1)) return "明日";
   return null;
+}
+
+/**
+ * 今日を終端とする直近 days 日分の日付を、古い順に並べて返す。
+ * 「今日を含めて7日」なので、days=7 なら 6日前〜今日。
+ */
+export function recentDateStrings(days: number, today: ISODateString = todayDateString()): ISODateString[] {
+  return Array.from({ length: days }, (_, i) => shiftDateString(today, i - (days - 1)));
 }
 
 /** 今日を含む今週（月曜始まり〜日曜）の日付範囲を返す */
