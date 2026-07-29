@@ -1,8 +1,14 @@
 import {
+  currentMonthString,
   currentWeekDateRange,
   formatDateLabel,
+  formatMonthLabel,
   formatShortDate,
+  monthDateStrings,
   recentDateStrings,
+  recentWeekStarts,
+  shiftMonthString,
+  weekStartString,
   weekdayLabel,
   relativeDayLabel,
   shiftDateString,
@@ -135,6 +141,63 @@ describe("recentDateStrings", () => {
     expect(days).toHaveLength(7);
     expect(days[6]).toBe("2026-07-26");
     jest.useRealTimers();
+  });
+});
+
+describe("weekStartString", () => {
+  test("週の途中は同じ週の月曜を返す", () => {
+    expect(weekStartString("2026-07-15")).toBe("2026-07-13"); // 水
+  });
+
+  test("月曜はその日を返し、日曜は前の月曜を返す", () => {
+    expect(weekStartString("2026-07-13")).toBe("2026-07-13");
+    expect(weekStartString("2026-07-19")).toBe("2026-07-13");
+  });
+});
+
+describe("recentWeekStarts", () => {
+  test("今週を終端とする直近N週の月曜を、古い順に返す", () => {
+    expect(recentWeekStarts(3, "2026-07-15")).toEqual([
+      "2026-06-29",
+      "2026-07-06",
+      "2026-07-13",
+    ]);
+  });
+
+  test("日曜を基準にしても、その日を含む週が終端になる", () => {
+    expect(recentWeekStarts(2, "2026-07-19")).toEqual(["2026-07-06", "2026-07-13"]);
+  });
+});
+
+describe("monthDateStrings", () => {
+  test("月末までの日付をゼロ埋めで返す", () => {
+    const july = monthDateStrings("2026-07");
+    expect(july).toHaveLength(31);
+    expect(july[0]).toBe("2026-07-01");
+    expect(july[30]).toBe("2026-07-31");
+  });
+
+  test("30日の月・平年の2月・うるう年の2月をそれぞれ正しく扱う", () => {
+    expect(monthDateStrings("2026-06")).toHaveLength(30);
+    expect(monthDateStrings("2026-02")).toHaveLength(28);
+    expect(monthDateStrings("2028-02")).toHaveLength(29);
+  });
+});
+
+describe("shiftMonthString / currentMonthString / formatMonthLabel", () => {
+  test("前後の月を返し、年をまたいでも正しく計算する", () => {
+    expect(shiftMonthString("2026-07", -1)).toBe("2026-06");
+    expect(shiftMonthString("2026-07", 1)).toBe("2026-08");
+    expect(shiftMonthString("2026-01", -1)).toBe("2025-12");
+    expect(shiftMonthString("2026-12", 1)).toBe("2027-01");
+  });
+
+  test("今日の属する年月を返す", () => {
+    expect(currentMonthString("2026-07-15")).toBe("2026-07");
+  });
+
+  test("見出し用のラベルはゼロ埋めしない", () => {
+    expect(formatMonthLabel("2026-07")).toBe("2026年7月");
   });
 });
 

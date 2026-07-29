@@ -35,9 +35,11 @@ const STATUS_ACTIVE_COLOR: Record<TaskStatus, string> = {
 export function HomeScreen({
   goals,
   onOpenGoalManagement,
+  onOpenAnalytics,
 }: {
   goals: GoalWithSubGoals[];
   onOpenGoalManagement: () => void;
+  onOpenAnalytics: () => void;
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loggedTaskIds, setLoggedTaskIds] = useState<Set<string>>(new Set());
@@ -184,6 +186,15 @@ export function HomeScreen({
         <DailyTrendChart refreshKey={summaryRefreshKey} />
 
         <WeeklySummary refreshKey={summaryRefreshKey} />
+
+        {/* 層2への導線。ホームは数秒で見終わる情報量に留める（要件定義書 4-3） */}
+        <TouchableOpacity
+          style={styles.analyticsLinkRow}
+          hitSlop={hitSlop}
+          onPress={onOpenAnalytics}
+        >
+          <Text style={styles.analyticsLink}>詳しく見る</Text>
+        </TouchableOpacity>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -373,6 +384,16 @@ const styles = StyleSheet.create({
   navLink: {
     color: colors.primary,
     fontSize: 13,
+    fontWeight: "600",
+  },
+  analyticsLinkRow: {
+    alignSelf: "center",
+    marginTop: -spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  analyticsLink: {
+    fontSize: 13,
+    color: colors.primary,
     fontWeight: "600",
   },
   error: {

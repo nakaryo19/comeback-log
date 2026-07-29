@@ -5,9 +5,10 @@ import { fetchGoalTree, type GoalWithSubGoals } from "../lib/supabase/goals";
 import { OnboardingScreen } from "./goals/OnboardingScreen";
 import { GoalManagementScreen } from "./goals/GoalManagementScreen";
 import { HomeScreen } from "./home/HomeScreen";
+import { AnalyticsScreen } from "./analytics/AnalyticsScreen";
 import { colors, spacing } from "../lib/theme";
 
-type ViewName = "home" | "goals";
+type ViewName = "home" | "goals" | "analytics";
 
 export function MainApp() {
   const { user, signOut } = useAuth();
@@ -38,7 +39,13 @@ export function MainApp() {
   return (
     <View style={styles.flex}>
       {view === "home" ? (
-        <HomeScreen goals={goals} onOpenGoalManagement={() => setView("goals")} />
+        <HomeScreen
+          goals={goals}
+          onOpenGoalManagement={() => setView("goals")}
+          onOpenAnalytics={() => setView("analytics")}
+        />
+      ) : view === "analytics" ? (
+        <AnalyticsScreen onBack={() => setView("home")} />
       ) : (
         <GoalManagementScreen
           goals={goals}
