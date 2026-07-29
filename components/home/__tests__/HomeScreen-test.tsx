@@ -79,7 +79,13 @@ function stubTasksByDate(tasksByDate: Record<string, Task[]>) {
 }
 
 async function renderHome(withGoals: GoalWithSubGoals[] = goals) {
-  return await render(<HomeScreen goals={withGoals} onOpenGoalManagement={jest.fn()} />);
+  return await render(
+    <HomeScreen
+      goals={withGoals}
+      onOpenGoalManagement={jest.fn()}
+      onOpenAnalytics={jest.fn()}
+    />,
+  );
 }
 
 function makeSubGoal(id: string, title: string, isProvisional = false): SubGoal {

@@ -69,17 +69,55 @@ export function recentDateStrings(days: number, today: ISODateString = todayDate
   return Array.from({ length: days }, (_, i) => shiftDateString(today, i - (days - 1)));
 }
 
+/** 指定日を含む週の月曜日を返す */
+export function weekStartString(date: ISODateString): ISODateString {
+  const dayOfWeek = parseDateString(date).getDay(); // 0=日, 1=月, ... 6=土
+  return shiftDateString(date, dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+}
+
 /** 今日を含む今週（月曜始まり〜日曜）の日付範囲を返す */
 export function currentWeekDateRange(): { start: ISODateString; end: ISODateString } {
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0=日, 1=月, ... 6=土
-  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const start = weekStartString(todayDateString());
+  return { start, end: shiftDateString(start, 6) };
+}
 
-  const monday = new Date(today);
-  monday.setDate(today.getDate() + diffToMonday);
+/**
+ * 今週を終端とする直近 weeks 週分の「週の開始日（月曜）」を、古い順に返す。
+ * 週次サマリーリストやタグ推移グラフのように、週を横軸に並べる表示で使う。
+ */
+export function recentWeekStarts(
+  weeks: number,
+  today: ISODateString = todayDateString(),
+): ISODateString[] {
+  const thisWeek = weekStartString(today);
+  return Array.from({ length: weeks }, (_, i) => shiftDateString(thisWeek, (i - (weeks - 1)) * 7));
+}
 
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
+/** 年月（"YYYY-MM"）。カレンダーヒートマップの表示単位 */
+export type ISOMonthString = string;
 
-  return { start: toDateString(monday), end: toDateString(sunday) };
+/** 今日を含む年月を返す */
+export function currentMonthString(today: ISODateString = todayDateString()): ISOMonthString {
+  return today.slice(0, 7);
+}
+
+/** 年月を months ヶ月ずらす（負数で過去へ） */
+export function shiftMonthString(month: ISOMonthString, months: number): ISOMonthString {
+  const [year, m] = month.split("-").map(Number);
+  const d = new Date(year, m - 1 + months, 1);
+  return toDateString(d).slice(0, 7);
+}
+
+/** 指定した年月の全日付を、1日から月末まで順に返す */
+export function monthDateStrings(month: ISOMonthString): ISODateString[] {
+  const [year, m] = month.split("-").map(Number);
+  // 翌月0日 = 当月末日。うるう年もここで吸収される
+  const lastDay = new Date(year, m, 0).getDate();
+  return Array.from({ length: lastDay }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`);
+}
+
+/** 見出し用の年月ラベル（例: "2026年7月"） */
+export function formatMonthLabel(month: ISOMonthString): string {
+  const [year, m] = month.split("-").map(Number);
+  return `${year}年${m}月`;
 }

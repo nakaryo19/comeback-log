@@ -3,6 +3,7 @@ import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-nativ
 import { createEmotionLog } from "../../lib/supabase/emotionLogs";
 import type { EmotionLog, EmotionScore, UUID } from "../../types/database";
 import { colors, hitSlop, radius, spacing } from "../../lib/theme";
+import { EMOTION_TAGS } from "../../lib/insights/tags";
 
 const SCORES: EmotionScore[] = [1, 2, 3, 4, 5];
 const SCORE_EMOJI: Record<EmotionScore, string> = {
@@ -12,7 +13,6 @@ const SCORE_EMOJI: Record<EmotionScore, string> = {
   4: "🙂",
   5: "😄",
 };
-const TAGS = ["不安", "達成感", "焦り", "集中", "疲労"];
 
 export function EmotionLogForm({
   taskId,
@@ -65,7 +65,7 @@ export function EmotionLogForm({
       </View>
 
       <View style={styles.tagRow}>
-        {TAGS.map((t) => (
+        {EMOTION_TAGS.map((t) => (
           <TouchableOpacity
             key={t}
             style={[styles.tagChip, tag === t && styles.tagChipActive]}
