@@ -24,12 +24,12 @@ beforeEach(() => {
 
 /** 確認欄が出るところまで進める */
 async function openConfirm() {
-  await render(<AccountScreen onBack={jest.fn()} />);
+  await render(<AccountScreen onBack={jest.fn()} onOpenExport={jest.fn()} />);
   await fireEvent.press(await screen.findByText("アカウントを削除する"));
 }
 
 test("削除で失われる件数を具体的に表示する", async () => {
-  await render(<AccountScreen onBack={jest.fn()} />);
+  await render(<AccountScreen onBack={jest.fn()} onOpenExport={jest.fn()} />);
 
   expect(
     await screen.findByText("大目標 2 件、タスク 34 件、感情の記録 12 件が削除されます。"),
@@ -38,7 +38,7 @@ test("削除で失われる件数を具体的に表示する", async () => {
 
 test("感情の記録が無いときは、その件数を出さない", async () => {
   fetchAccountDataSummary.mockResolvedValue({ goals: 1, tasks: 3, emotionLogs: 0 });
-  await render(<AccountScreen onBack={jest.fn()} />);
+  await render(<AccountScreen onBack={jest.fn()} onOpenExport={jest.fn()} />);
 
   expect(await screen.findByText("大目標 1 件、タスク 3 件が削除されます。")).toBeTruthy();
 });
@@ -76,7 +76,7 @@ test("削除に失敗したらエラーを表示し、ログアウトしない",
 });
 
 test("ログアウトはこの画面に置かない（メニュー側に集約する）", async () => {
-  await render(<AccountScreen onBack={jest.fn()} />);
+  await render(<AccountScreen onBack={jest.fn()} onOpenExport={jest.fn()} />);
 
   expect(await screen.findByText("アカウント削除")).toBeTruthy();
   expect(screen.queryByText("ログアウト")).toBeNull();

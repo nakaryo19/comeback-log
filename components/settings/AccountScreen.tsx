@@ -15,7 +15,13 @@ import { colors, hitSlop, radius, spacing } from "../../lib/theme";
  */
 const CONFIRM_WORD = "削除";
 
-export function AccountScreen({ onBack }: { onBack: () => void }) {
+export function AccountScreen({
+  onBack,
+  onOpenExport,
+}: {
+  onBack: () => void;
+  onOpenExport: () => void;
+}) {
   const { user, signOut } = useAuth();
   const [summary, setSummary] = useState<AccountDataSummary | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -82,10 +88,10 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
               が削除されます。
             </Text>
           )}
-          {/* 書き出し機能が未実装のうちは、削除＝記録が完全に失われることを明示する */}
-          <Text style={styles.impactNote}>
-            記録を手元に残す手段は、現在まだ用意できていません。
-          </Text>
+          {/* 削除は取り消せず、無料枠にバックアップも無い。消す前に控えを取れることを示す */}
+          <TouchableOpacity hitSlop={hitSlop} onPress={onOpenExport} style={styles.exportLink}>
+            <Text style={styles.exportLinkText}>削除する前に、記録をエクスポートしておく</Text>
+          </TouchableOpacity>
 
           {!confirming ? (
             <TouchableOpacity
@@ -204,10 +210,14 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
-  impactNote: {
-    fontSize: 12,
-    color: colors.textMuted,
+  exportLink: {
+    alignSelf: "flex-start",
     marginBottom: spacing.md,
+  },
+  exportLinkText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: "600",
   },
   dangerButton: {
     alignSelf: "flex-start",
