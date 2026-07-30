@@ -3,5 +3,9 @@
   "compilerOptions": {
     "strict": true,
     "types": ["jest"]
-  }
+  },
+  // Edge Function は Deno ランタイムで動き、Deno のグローバルと jsr: の import を使う。
+  // React Native 側の型解決とは前提が異なるため、このプロジェクトの型チェック対象から外す
+  // （検証は supabase CLI のデプロイ時に行われる）。
+  "exclude": ["supabase/functions"]
 }
