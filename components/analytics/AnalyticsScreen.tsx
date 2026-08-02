@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { recentWeekStarts, shiftDateString } from "../../lib/date";
+import { buildDailyStats } from "../../lib/insights/dailyStats";
+import { buildHighlights, type Highlights } from "../../lib/insights/highlights";
 import { buildWeeklyStats, type WeeklyStat } from "../../lib/insights/weeklyStats";
 import { fetchEmotionEntriesByTaskId } from "../../lib/supabase/emotionLogs";
 import { fetchTasksForDateRange } from "../../lib/supabase/tasks";
 import { colors, hitSlop, radius, spacing } from "../../lib/theme";
 import { EmotionHeatmap } from "./EmotionHeatmap";
+import { HighlightCards } from "./HighlightCards";
 import { TagTrendChart } from "./TagTrendChart";
 import { WeeklySummaryList } from "./WeeklySummaryList";
 
@@ -25,6 +28,7 @@ const WEEKS = 8;
  */
 export function AnalyticsScreen({ onBack }: { onBack: () => void }) {
   const [weeks, setWeeks] = useState<WeeklyStat[] | null>(null);
+  const [highlights, setHighlights] = useState<Highlights | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,7 +42,14 @@ export function AnalyticsScreen({ onBack }: { onBack: () => void }) {
         const tasks = await fetchTasksForDateRange(start, end);
         const entries = await fetchEmotionEntriesByTaskId(tasks.map((t) => t.id));
         if (cancelled) return;
-        setWeeks(buildWeeklyStats(weekStarts, tasks, entries));
+
+        const weekStats = buildWeeklyStats(weekStarts, tasks, entries);
+        // ハイライトの判定には日ごとの前後関係が要る（詰め込み・好循環パターン）。
+        // 週次と同じタスク・感情ログから組み立てられるので、問い合わせは増やさない
+        const dates = Array.from({ length: WEEKS * 7 }, (_, i) => shiftDateString(start, i));
+        const scores = new Map([...entries].map(([taskId, entry]) => [taskId, entry.score]));
+        setWeeks(weekStats);
+        setHighlights(buildHighlights(weekStats, buildDailyStats(dates, tasks, scores)));
       } catch (e) {
         if (cancelled) return;
         setError(e instanceof Error ? e.message : "分析データの取得に失敗しました。");
@@ -72,7 +83,8 @@ export function AnalyticsScreen({ onBack }: { onBack: () => void }) {
           <Text style={styles.loading}>読み込み中...</Text>
         ) : (
           <>
-            <WeeklySummaryList weeks={weeks} />
+            {highlights && <HighlightCards highlights={highlights} />}
+            <WeeklySummaryList weeks={weeks} highlights={highlights?.byWeekStart} />
             <TagTrendChart weeks={weeks} />
           </>
         )}
