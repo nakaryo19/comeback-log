@@ -7,9 +7,10 @@ import { GoalManagementScreen } from "./goals/GoalManagementScreen";
 import { HomeScreen } from "./home/HomeScreen";
 import { AnalyticsScreen } from "./analytics/AnalyticsScreen";
 import { AccountScreen } from "./settings/AccountScreen";
+import { DataExportScreen } from "./settings/DataExportScreen";
 import { colors, radius, shadow, spacing } from "../lib/theme";
 
-type ViewName = "home" | "goals" | "analytics" | "account";
+type ViewName = "home" | "goals" | "analytics" | "account" | "export";
 
 export function MainApp() {
   const { user, signOut } = useAuth();
@@ -60,7 +61,9 @@ export function MainApp() {
       ) : view === "analytics" ? (
         <AnalyticsScreen onBack={() => setView("home")} />
       ) : view === "account" ? (
-        <AccountScreen onBack={() => setView("home")} />
+        <AccountScreen onBack={() => setView("home")} onOpenExport={() => setView("export")} />
+      ) : view === "export" ? (
+        <DataExportScreen onBack={() => setView("home")} />
       ) : (
         <GoalManagementScreen
           goals={goals}
@@ -89,6 +92,16 @@ export function MainApp() {
               }}
             >
               <Text style={styles.menuItemText}>ログアウト</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              accessibilityRole="button"
+              onPress={() => {
+                setMenuOpen(false);
+                setView("export");
+              }}
+            >
+              <Text style={styles.menuItemText}>データエクスポート</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuItem}
