@@ -1,0 +1,106 @@
+# バックアップから実際に復元できることを検証する。
+#
+# 「未検証のバックアップは、無いのと同じ」ため、平時に一度通しておく。
+# 復元先は毎回作って毎回捨てる空の PostgreSQL コンテナであり、**本番DBには一切書き込まない**。
+#
+# 定期実行にはしていない。復元可能性が変わるのはスキーマ変更（マイグレーション）や
+# Supabase 側の内部変更が起きたときであって、データが1日分増えたときではないため。
+# マイグレーションを適用したら手動で1回実行すること（docs/運用/バックアップ運用.md 参照）。
+name: Verify Restore
+
+on:
+  push:
+    branches: [chore/verify-restore]  # TEMP: マージ前の動作確認用。確認後に削除する
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "検証する Database Backup の run ID（空なら直近の成功実行）"
+        required: false
+        type: string
+
+permissions:
+  # 別ワークフローの Artifacts を取得するために必要
+  actions: read
+  contents: read
+
+concurrency:
+  group: verify-restore
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # 使い捨ての復元先。ここが壊れても失うものはない
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v4
+
+      - name: 検証対象のバックアップを決める
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+        run: |
+          run_id="$INPUT_RUN_ID"
+          if [ -z "$run_id" ]; then
+            run_id="$(gh run list --workflow backup.yml --status success \
+              --limit 1 --json databaseId --jq '.[0].databaseId')"
+          fi
+          if [ -z "$run_id" ] || [ "$run_id" = "null" ]; then
+            echo "::error::成功した Database Backup の実行が見つかりません。"
+            exit 1
+          fi
+          echo "検証対象の run ID: ${run_id}"
+          echo "run_id=${run_id}" >> "$GITHUB_OUTPUT"
+
+      - name: 暗号化済みバックアップを取得
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.target.outputs.run_id }}
+        run: |
+          mkdir -p backup
+          gh run download "$RUN_ID" --name "db-backup-${RUN_ID}" --dir backup
+          ls -l backup
+
+      - name: PostgreSQL クライアントを導入
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -sS -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          psql --version
+
+      - name: 復元して検証
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          if [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::シークレット BACKUP_PASSPHRASE が未設定です。"
+            exit 1
+          fi
+          archive="$(ls backup/*.tar.gz.gpg | head -1)"
+          chmod +x scripts/verify-restore.sh
+          ./scripts/verify-restore.sh "$archive"
