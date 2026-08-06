@@ -23,7 +23,8 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(
       persistSession: true,
       // パスワード再設定のメールリンクは、Webでは URL のハッシュにトークンを載せて戻ってくる。
       // Web で false のままだとアプリがそれを読み取れず、リンク経由の復旧が成立しない。
-      // ネイティブには URL が無いため false のままにする（将来ディープリンク対応時に見直す）。
+      // ネイティブには「今開いている URL」が無いためこの仕組みは使えない。false のままにし、
+      // ディープリンクで受け取った URL を auth-context 側で自前に解釈する（recovery-link.ts）。
       detectSessionInUrl: Platform.OS === "web",
     },
   },
