@@ -23,6 +23,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "268f462a-364e-4db7-b10a-3970337561e7"
+      }
+    },
+    "owner": "nakaryo19"
   }
 }

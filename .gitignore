@@ -45,3 +45,6 @@ yarn-error.*
 
 # Supabase CLI のローカル状態（プロジェクト紐付けなど）
 supabase/.temp/
+
+# eas build --local の成果物（1回あたり15MB前後。リポジトリに入れるものではない）
+build-*.tar.gz
