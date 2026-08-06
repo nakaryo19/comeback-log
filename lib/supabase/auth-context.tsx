@@ -1,7 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Platform } from "react-native";
+import * as Linking from "expo-linking";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./client";
+import { describeLinkError, parseRecoveryUrl, recoveryRedirectTo } from "./recovery-link";
 
 interface AuthContextValue {
   session: Session | null;
@@ -19,27 +21,12 @@ interface AuthContextValue {
   dismissRecovery: () => void;
 }
 
-/**
- * 再設定リンクの戻り先URL。Webでは今開いているオリジンをそのまま使う。
- * Supabase の Authentication → URL Configuration で許可されている必要がある。
- */
-function recoveryRedirectTo(): string | undefined {
-  if (Platform.OS !== "web" || typeof window === "undefined") return undefined;
-  return window.location.origin;
-}
-
-/**
- * リンクが無効・期限切れの場合、Supabase は成功時と同じくハッシュに情報を載せて戻す。
- * 黙って握りつぶすと「押しても何も起きない」画面になるため、理由を拾って画面に出す。
- */
+/** Web で、リンクのエラー情報がハッシュに載って戻ってきていれば拾う */
 function readRecoveryLinkError(): string | null {
   if (Platform.OS !== "web" || typeof window === "undefined") return null;
   const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   if (!params.get("error")) return null;
-
-  return params.get("error_code") === "otp_expired"
-    ? "リンクの有効期限が切れているか、すでに使用されています。もう一度送信してください。"
-    : (params.get("error_description") ?? "リンクが無効です。もう一度送信してください。");
+  return describeLinkError(params);
 }
 
 /** トークンやエラーをアドレスバーに残さない（再読み込みで再処理されるのも防ぐ） */
@@ -82,6 +69,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.subscription.unsubscribe();
   }, []);
 
+  // ネイティブのディープリンク受け口。
+  // Web と違い「今開いている URL」が無いため、supabase-js の detectSessionInUrl は使えない。
+  // リンクから戻ってきた URL を自前で解釈し、セッションを復元する。
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+
+    let active = true;
+
+    async function handleUrl(url: string | null) {
+      if (!url || !active) return;
+      const link = parseRecoveryUrl(url);
+      if (!link) return;
+
+      if (link.kind === "error") {
+        setRecoveryLinkError(link.message);
+        return;
+      }
+
+      const { error } = await supabase.auth.setSession({
+        access_token: link.accessToken,
+        refresh_token: link.refreshToken,
+      });
+      if (!active) return;
+
+      if (error) {
+        setRecoveryLinkError(
+          "リンクの有効期限が切れているか、すでに使用されています。もう一度送信してください。",
+        );
+        return;
+      }
+
+      // setSession が発火させるのは SIGNED_IN であって PASSWORD_RECOVERY ではない。
+      // そのままだと復旧画面を飛ばしてアプリ本体に入ってしまうため、ここで明示的に立てる。
+      setRecoveryLinkError(null);
+      setRecovering(true);
+    }
+
+    // アプリが起動していない状態でリンクを踏んだ場合は getInitialURL、
+    // 起動中に踏んだ場合は url イベントで届く。両方を見ないと片方で取りこぼす。
+    void Linking.getInitialURL().then(handleUrl);
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      void handleUrl(url);
+    });
+
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
+
   async function signUp(email: string, password: string) {
     const { error } = await supabase.auth.signUp({ email, password });
     return { error: error?.message ?? null };
@@ -97,6 +134,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function sendPasswordReset(email: string) {
+    // 前のリンクのエラーを残したままだと、送信成功の案内と赤いエラーが同時に出て
+    // 「送れたのか失敗したのか」が読み取れなくなる
+    setRecoveryLinkError(null);
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: recoveryRedirectTo(),
     });
