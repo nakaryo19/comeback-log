@@ -48,3 +48,8 @@ supabase/.temp/
 
 # eas build --local の成果物（1回あたり15MB前後。リポジトリに入れるものではない）
 build-*.tar.gz
+
+# 法務ページの生成物とプレースホルダの実値
+# （運営者名・連絡先は公開が必要になる時点まで検索可能にしない。docs/legal/README.md 参照）
+/dist-legal
+docs/legal/values.local.json
