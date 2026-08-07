@@ -33,7 +33,8 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:watch": "jest --watchAll"
+    "test:watch": "jest --watchAll",
+    "build:legal": "node scripts/build-legal.mjs"
   },
   "private": true
 }

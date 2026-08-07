@@ -1,0 +1,9 @@
+{
+  "_comment": "docs/legal/ のプレースホルダに差し込む値の雛形。values.local.json にコピーして埋める（values.local.json は Git 管理外）。Cloudflare Pages では同じ内容を環境変数 LEGAL_VALUES に JSON 文字列として設定する。実際の値は docs/運用/商用リリース前チェックリスト.md §1-2 に記録してある。",
+  "運営者名": "",
+  "連絡先メールアドレス": "",
+  "Supabaseのリージョン": "",
+  "管轄裁判所の所在地": "",
+  "公開URL": "",
+  "制定日": ""
+}
