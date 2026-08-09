@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { currentWeekDateRange, todayDateString } from "../../lib/date";
+import { currentWeekDateRange, shiftDateString, todayDateString } from "../../lib/date";
+import { currentStreak, STREAK_LOOKBACK_DAYS } from "../../lib/insights/streak";
+import { fetchActiveDates } from "../../lib/supabase/activity";
 import { fetchEmotionScoresForTasks } from "../../lib/supabase/emotionLogs";
 import { fetchTasksForDateRange } from "../../lib/supabase/tasks";
 import { colors, radius, shadow, spacing } from "../../lib/theme";
@@ -8,20 +10,28 @@ import { colors, radius, shadow, spacing } from "../../lib/theme";
 export function WeeklySummary({ refreshKey }: { refreshKey?: unknown }) {
   const [achievementRate, setAchievementRate] = useState<number | null>(null);
   const [averageScore, setAverageScore] = useState<number | null>(null);
+  const [streak, setStreak] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
+      const today = todayDateString();
       const { start, end } = currentWeekDateRange();
       const allTasks = await fetchTasksForDateRange(start, end);
       const scores = await fetchEmotionScoresForTasks(allTasks.map((t) => t.id));
+      // 継続日数は今日を含めず昨日で途切れる場合があるため、さかのぼる起点は今日
+      const activeDates = await fetchActiveDates(
+        shiftDateString(today, -STREAK_LOOKBACK_DAYS),
+        today,
+      );
       if (cancelled) return;
+
+      setStreak(currentStreak(activeDates, today));
 
       // まだ来ていない日の予定は達成率の分母に入れない。
       // 先の予定を登録した瞬間に達成率が下がると、記録すること自体が罰になってしまうため。
-      const today = todayDateString();
       const tasks = allTasks.filter((t) => t.date <= today);
 
       setAchievementRate(
@@ -68,6 +78,22 @@ export function WeeklySummary({ refreshKey }: { refreshKey?: unknown }) {
         </Text>
         <Text style={styles.label}>今週の平均感情スコア</Text>
       </View>
+      <View style={styles.divider} />
+      <View style={styles.card}>
+        {/* 途切れているときは 0 ではなく「－」。他の2つの未記録時と同じ見え方に揃え、
+            0 という数字を突きつけない（要件定義書 4-3 の表現トーンに合わせる） */}
+        <Text style={styles.value}>
+          {streak === null ? (
+            "－"
+          ) : (
+            <>
+              {streak}
+              <Text style={styles.valueSuffix}>日</Text>
+            </>
+          )}
+        </Text>
+        <Text style={styles.label}>継続日数</Text>
+      </View>
     </View>
   );
 }
@@ -75,7 +101,9 @@ export function WeeklySummary({ refreshKey }: { refreshKey?: unknown }) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    alignItems: "center",
+    // stretch にして3枚の高さを揃える。ラベルの行数が違う（「今週の平均感情スコア」だけ
+    // 狭幅で2行になる）ため、center のままだと数値の高さがカードごとにずれる
+    alignItems: "stretch",
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     paddingVertical: spacing.lg,
@@ -85,6 +113,7 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     alignItems: "center",
+    paddingHorizontal: spacing.xs,
   },
   divider: {
     width: 1,
@@ -105,5 +134,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
     marginTop: spacing.xs,
+    textAlign: "center",
   },
 });
