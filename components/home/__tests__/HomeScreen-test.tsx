@@ -26,6 +26,9 @@ jest.mock("../../../lib/supabase/emotionLogs", () => ({
   fetchEmotionScoresByTaskId: jest.fn(() => Promise.resolve(new Map())),
   createEmotionLog: jest.fn(),
 }));
+jest.mock("../../../lib/supabase/activity", () => ({
+  fetchActiveDates: jest.fn(() => Promise.resolve(new Set())),
+}));
 // selectableSubGoals は純粋関数なので実物を使う（候補の絞り込み自体を検証したいため）。
 // 実物の goals.ts は Supabase クライアントを import するので、client 側をモックしておく。
 jest.mock("../../../lib/supabase/client", () => ({ supabase: {} }));
