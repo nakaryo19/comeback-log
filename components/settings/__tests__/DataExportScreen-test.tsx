@@ -46,6 +46,7 @@ const dump = {
 beforeEach(() => {
   jest.clearAllMocks();
   fetchAllUserData.mockResolvedValue(dump);
+  saveTextFile.mockResolvedValue("saved");
 });
 
 test("CSVで保存すると、表として読める中身を渡す", async () => {
@@ -53,11 +54,11 @@ test("CSVで保存すると、表として読める中身を渡す", async () =>
 
   await fireEvent.press(screen.getByText("CSVで保存"));
 
-  const [fileName, content, mimeType] = saveTextFile.mock.calls[0];
+  const [fileName, content, format] = saveTextFile.mock.calls[0];
   expect(fileName).toMatch(/^comeback-log-\d{4}-\d{2}-\d{2}\.csv$/);
   expect(content).toContain("簿記2級に合格する");
   expect(content).toContain("第3問を解く");
-  expect(mimeType).toContain("text/csv");
+  expect(format).toBe("csv");
 });
 
 test("JSONで保存すると、階層を保った中身を渡す", async () => {
@@ -65,13 +66,13 @@ test("JSONで保存すると、階層を保った中身を渡す", async () => {
 
   await fireEvent.press(screen.getByText("JSONで保存"));
 
-  const [fileName, content, mimeType] = saveTextFile.mock.calls[0];
+  const [fileName, content, format] = saveTextFile.mock.calls[0];
   expect(fileName).toMatch(/\.json$/);
   expect(JSON.parse(content).goals[0].sub_goals[0].tasks[0].title).toBe("第3問を解く");
-  expect(mimeType).toBe("application/json");
+  expect(format).toBe("json");
 });
 
-test("保存できたらファイル名を画面に出す", async () => {
+test("Web で保存できたらファイル名を画面に出す", async () => {
   await render(<DataExportScreen onBack={jest.fn()} />);
 
   await fireEvent.press(screen.getByText("CSVで保存"));
@@ -79,15 +80,28 @@ test("保存できたらファイル名を画面に出す", async () => {
   expect(await screen.findByText(/を保存しました。$/)).toBeTruthy();
 });
 
-test("保存に失敗したら理由を表示する", async () => {
-  saveTextFile.mockImplementation(() => {
-    throw new Error("この端末ではまだ書き出しに対応していません。");
-  });
+test("共有シート経由のときは、保存できたと言い切らない", async () => {
+  // 共有シートは保存をやめた場合も同じように閉じるため、結果を断定できない
+  saveTextFile.mockResolvedValue("shared");
   await render(<DataExportScreen onBack={jest.fn()} />);
 
   await fireEvent.press(screen.getByText("CSVで保存"));
 
-  expect(await screen.findByText("この端末ではまだ書き出しに対応していません。")).toBeTruthy();
+  expect(await screen.findByText(/選んだ保存先をご確認ください。$/)).toBeTruthy();
+  expect(screen.queryByText(/を保存しました。$/)).toBeNull();
+});
+
+test("保存に失敗したら理由を表示する", async () => {
+  saveTextFile.mockRejectedValue(
+    new Error("この端末では共有機能を利用できないため、書き出しできませんでした。"),
+  );
+  await render(<DataExportScreen onBack={jest.fn()} />);
+
+  await fireEvent.press(screen.getByText("CSVで保存"));
+
+  expect(
+    await screen.findByText("この端末では共有機能を利用できないため、書き出しできませんでした。"),
+  ).toBeTruthy();
 });
 
 test("取得に失敗したら理由を表示し、保存はしない", async () => {
