@@ -9,7 +9,19 @@
  */
 // import は巻き上げられてモック工場より先に走るため、工場の中で完結させる。
 // 外側の変数を参照すると、初期化前に読まれて undefined になる。
-jest.mock("react-native", () => ({ Platform: { OS: "ios" } }));
+//
+// react-native は実物を残して Platform だけ差し替える。丸ごと差し替えると
+// expo-modules-core がネイティブモジュールを見つけられず、テスト終了後に警告を出す。
+// jest は --ci でこれを失敗として扱う（実際に CI を落とした）。
+jest.mock("react-native", () => {
+  const actual = jest.requireActual("react-native");
+  const platform = { OS: "ios" };
+  // Proxy で Platform だけ差し替える。オブジェクトを展開すると
+  // ProgressBarAndroid や SafeAreaView の非推奨ゲッターまで踏んでしまう
+  return new Proxy(actual, {
+    get: (target, prop) => (prop === "Platform" ? platform : Reflect.get(target, prop)),
+  });
+});
 
 jest.mock("expo-sharing", () => ({
   shareAsync: jest.fn(),
