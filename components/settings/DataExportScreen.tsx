@@ -3,33 +3,35 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-nati
 import { fetchAllUserData } from "../../lib/supabase/export";
 import { buildExportPayload, exportFileName } from "../../lib/export/buildExport";
 import { buildCsv } from "../../lib/export/buildCsv";
-import { saveTextFile } from "../../lib/export/saveFile";
+import { saveTextFile, type ExportFormat } from "../../lib/export/saveFile";
 import { colors, hitSlop, radius, spacing } from "../../lib/theme";
 
-type Format = "csv" | "json";
-
 export function DataExportScreen({ onBack }: { onBack: () => void }) {
-  const [exporting, setExporting] = useState<Format | null>(null);
+  const [exporting, setExporting] = useState<ExportFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [savedFileName, setSavedFileName] = useState<string | null>(null);
+  const [result, setResult] = useState<string | null>(null);
 
-  async function handleExport(format: Format) {
+  async function handleExport(format: ExportFormat) {
     setExporting(format);
     setError(null);
-    setSavedFileName(null);
+    setResult(null);
     try {
       const dump = await fetchAllUserData();
       const fileName = exportFileName(format);
-      if (format === "csv") {
-        saveTextFile(fileName, buildCsv(dump), "text/csv;charset=utf-8");
-      } else {
-        saveTextFile(
-          fileName,
-          JSON.stringify(buildExportPayload(dump), null, 2),
-          "application/json",
-        );
-      }
-      setSavedFileName(fileName);
+      const content =
+        format === "csv"
+          ? buildCsv(dump)
+          : JSON.stringify(buildExportPayload(dump), null, 2);
+
+      const outcome = await saveTextFile(fileName, content, format);
+
+      // 共有シートは、利用者が保存をやめた場合も同じように閉じる。
+      // 何が起きたか分からないまま「保存しました」と言い切らない
+      setResult(
+        outcome === "saved"
+          ? `${fileName} を保存しました。`
+          : `${fileName} を書き出しました。選んだ保存先をご確認ください。`,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "書き出しに失敗しました。");
     } finally {
@@ -52,7 +54,7 @@ export function DataExportScreen({ onBack }: { onBack: () => void }) {
         </Text>
 
         {error && <Text style={styles.error}>{error}</Text>}
-        {savedFileName && <Text style={styles.success}>{savedFileName} を保存しました。</Text>}
+        {result && <Text style={styles.success}>{result}</Text>}
 
         {/* 既定はCSV。JSONは「開いても読めないファイル」になりがちで、
             控えとして受け取った本人の役に立たない */}
