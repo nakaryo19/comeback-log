@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Linking, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../../lib/supabase/auth-context";
+import { legalLinks } from "../../lib/legalLinks";
 import { colors, hitSlop, radius, shadow, spacing } from "../../lib/theme";
 
 type Mode = "signIn" | "signUp" | "reset";
@@ -10,6 +11,8 @@ const TITLES: Record<Mode, string> = {
   signUp: "新規登録",
   reset: "パスワードの再設定",
 };
+
+const links = legalLinks();
 
 export function AuthScreen() {
   const { signIn, signUp, sendPasswordReset, recoveryLinkError } = useAuth();
@@ -123,6 +126,25 @@ export function AuthScreen() {
             {mode === "signIn" ? "アカウントを作成する" : "ログイン画面に戻る"}
           </Text>
         </TouchableOpacity>
+
+        {/* 登録の直前に、何に同意することになるのかを読める場所を置く。
+            登録後の設定画面だけに置くと、同意した後にしか読めないことになる */}
+        {mode === "signUp" && links.length > 0 && (
+          // Text の入れ子にして1つの文として折り返す。View を並べると
+          // 単語単位で折れず、狭い端末で「と」だけが行頭に落ちる
+          <Text style={styles.legalNotice}>
+            登録すると、
+            {links.map((link, index) => (
+              <Text key={link.url}>
+                {index > 0 && "と"}
+                <Text style={styles.legalLink} onPress={() => Linking.openURL(link.url)}>
+                  {link.label}
+                </Text>
+              </Text>
+            ))}
+            に同意したものとみなされます。
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -212,6 +234,17 @@ const styles = StyleSheet.create({
   switchButton: {
     marginTop: spacing.lg,
     alignItems: "center",
+  },
+  legalNotice: {
+    marginTop: spacing.lg,
+    fontSize: 11,
+    lineHeight: 18,
+    color: colors.textMuted,
+    textAlign: "center",
+  },
+  legalLink: {
+    color: colors.primary,
+    textDecorationLine: "underline",
   },
   switchButtonText: {
     color: colors.primary,
