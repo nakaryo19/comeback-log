@@ -2349,12 +2349,6 @@
       "text": 129
     },
     {
-      "name": "lightningcss-darwin-arm64",
-      "version": "1.33.0",
-      "license": "MPL-2.0",
-      "text": 129
-    },
-    {
       "name": "locate-path",
       "version": "5.0.0",
       "license": "MIT",

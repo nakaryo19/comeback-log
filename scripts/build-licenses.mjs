@@ -89,6 +89,7 @@ function licenseId(pkg) {
 
 function collect() {
   const byKey = new Map();
+  const skipped = [];
 
   for (const packageDir of productionPackagePaths()) {
     const manifestPath = join(packageDir, "package.json");
@@ -101,6 +102,16 @@ function collect() {
       continue;
     }
     if (!pkg.name || pkg.private) continue;
+
+    // プラットフォーム別のバイナリ（lightningcss-darwin-arm64 など）は、
+    // インストールされる版が OS/CPU によって変わる。含めると生成結果が
+    // 開発機と CI（Linux）で食い違い、--check が必ず落ちる。
+    // これらは基底パッケージのビルド成果物で、ライセンスも同じ。
+    // 基底パッケージ側が一覧に載っていることは下で検証する
+    if (pkg.os || pkg.cpu) {
+      skipped.push({ name: pkg.name, license: licenseId(pkg) });
+      continue;
+    }
 
     // 同じパッケージの同じバージョンが複数箇所に入ることがある（重複排除）
     const key = `${pkg.name}@${pkg.version}`;
@@ -117,7 +128,20 @@ function collect() {
     });
   }
 
-  return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name));
+  const kept = [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name));
+
+  // 除外したパッケージのライセンスが一覧のどこにも無いなら、
+  // そのライセンスの条件を満たさないまま出荷することになる
+  const shown = new Set(kept.map((entry) => entry.license));
+  const lost = skipped.filter((entry) => !shown.has(entry.license));
+  if (lost.length > 0) {
+    throw new Error(
+      "プラットフォーム別パッケージを除外した結果、一覧に出ないライセンスがあります: " +
+        lost.map((entry) => `${entry.name}（${entry.license}）`).join(", "),
+    );
+  }
+
+  return kept;
 }
 
 /**
