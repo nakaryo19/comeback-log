@@ -63,6 +63,9 @@ describe("<AuthScreen /> パスワード再設定", () => {
     await fireEvent.press(screen.getByText("再設定リンクを送る"));
 
     expect(screen.getByText(/登録されているアドレスであれば/)).toBeTruthy();
+    // 独自ドメインを持たない構成では SPF / DKIM を張れず、実際に振り分けられうる。
+    // 案内が消えると「届かない＝復旧できない」と受け取られる
+    expect(screen.getByText(/迷惑メールフォルダ/)).toBeTruthy();
   });
 
   test("リンクが無効だった場合は理由を表示する", async () => {
