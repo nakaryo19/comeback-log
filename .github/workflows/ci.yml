@@ -33,3 +33,8 @@ jobs:
 
       - name: Test
         run: npm test -- --ci
+
+      # 依存を足したのに一覧を再生成し忘れると、同梱している OSS の
+      # 著作権表示が欠けたまま出荷されることになる
+      - name: OSSライセンス一覧が最新か
+        run: node scripts/build-licenses.mjs --check

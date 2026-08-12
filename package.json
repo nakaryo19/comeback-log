@@ -36,7 +36,9 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watchAll",
-    "build:legal": "node scripts/build-legal.mjs"
+    "build:legal": "node scripts/build-legal.mjs",
+    "build:licenses": "node scripts/build-licenses.mjs"
   },
-  "private": true
+  "private": true,
+  "license": "UNLICENSED"
 }
