@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 import * as Linking from "expo-linking";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./client";
+import { describeAuthError } from "./auth-errors";
 import { describeLinkError, parseRecoveryUrl, recoveryRedirectTo } from "./recovery-link";
 
 interface AuthContextValue {
@@ -121,12 +122,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signUp(email: string, password: string) {
     const { error } = await supabase.auth.signUp({ email, password });
-    return { error: error?.message ?? null };
+    return { error: describeAuthError(error) };
   }
 
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    return { error: describeAuthError(error) };
   }
 
   async function signOut() {
@@ -141,13 +142,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: recoveryRedirectTo(),
     });
-    return { error: error?.message ?? null };
+    return { error: describeAuthError(error) };
   }
 
   async function updatePassword(password: string) {
     const { error } = await supabase.auth.updateUser({ password });
     if (!error) setRecovering(false);
-    return { error: error?.message ?? null };
+    return { error: describeAuthError(error) };
   }
 
   /** 再設定をやめる。リンクで得た一時セッションは破棄してログイン画面へ戻す */
