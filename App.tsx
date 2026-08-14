@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './lib/supabase/auth-context';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { PasswordRecoveryScreen } from './components/auth/PasswordRecoveryScreen';
 import { MainApp } from './components/MainApp';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { colors } from './lib/theme';
 
 function AppContent() {
@@ -45,9 +46,14 @@ export default function App() {
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <AuthProvider>
-            <AppContent />
-          </AuthProvider>
+          {/* AuthProvider の外側に置く。中に入れると Provider 自身の例外を拾えず、
+              代替画面ではなく白画面のままになる。逆に SafeAreaView より外へ出すと、
+              代替画面がノッチの下に潜り込む */}
+          <ErrorBoundary>
+            <AuthProvider>
+              <AppContent />
+            </AuthProvider>
+          </ErrorBoundary>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </SafeAreaProvider>
