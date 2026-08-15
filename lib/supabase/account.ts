@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { UserFacingError } from "./data-errors";
 
 /** 削除で失われる件数。確認画面で具体的に示すために数える */
 export type AccountDataSummary = {
@@ -39,6 +40,6 @@ async function countRows(table: "goals" | "tasks" | "emotion_logs"): Promise<num
 export async function deleteAccount(): Promise<void> {
   const { error } = await supabase.functions.invoke("delete-account", { method: "POST" });
   if (error) {
-    throw new Error("アカウントの削除に失敗しました。時間をおいて、もう一度お試しください。");
+    throw new UserFacingError("アカウントの削除に失敗しました。時間をおいて、もう一度お試しください。");
   }
 }

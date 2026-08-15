@@ -124,7 +124,9 @@ describe("<EmotionLogForm />", () => {
   });
 
   test("保存に失敗したらエラーメッセージを表示する", async () => {
-    mockCreateEmotionLog.mockRejectedValue(new Error("network error"));
+    // network を含む文言は通信エラーとして扱われるため、ここでは
+    // 分類されない例外を使う。汎用の日本語に落ちることを見る（B12）
+    mockCreateEmotionLog.mockRejectedValue(new Error("insert failed"));
     const onSaved = jest.fn();
     await render(
       <EmotionLogForm taskId="task-1" onSaved={onSaved} onSkip={jest.fn()} />,
@@ -133,7 +135,8 @@ describe("<EmotionLogForm />", () => {
     await fireEvent.press(screen.getByText("🙂"));
     await fireEvent.press(screen.getByText("記録する"));
 
-    await screen.findByText("network error");
+    await screen.findByText("記録に失敗しました。");
+    expect(screen.queryByText(/insert failed/)).toBeNull();
     expect(onSaved).not.toHaveBeenCalled();
   });
 });

@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { createGoalWithInitialTasks } from "../../lib/supabase/goals";
 import { todayDateString } from "../../lib/date";
 import { useAuth } from "../../lib/supabase/auth-context";
+import { describeDataError } from "../../lib/supabase/data-errors";
 import { colors, radius, shadow, spacing } from "../../lib/theme";
 
 export function OnboardingScreen({ onDone }: { onDone: () => void }) {
@@ -41,7 +42,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
       });
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "登録に失敗しました。");
+      setError(describeDataError(e, "登録に失敗しました。"));
     } finally {
       setSubmitting(false);
     }

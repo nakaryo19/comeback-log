@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { fetchAllUserData } from "../../lib/supabase/export";
+import { describeDataError } from "../../lib/supabase/data-errors";
 import { buildExportPayload, exportFileName } from "../../lib/export/buildExport";
 import { buildCsv } from "../../lib/export/buildCsv";
 import { saveTextFile, type ExportFormat } from "../../lib/export/saveFile";
@@ -33,7 +34,7 @@ export function DataExportScreen({ onBack }: { onBack: () => void }) {
           : `${fileName} を書き出しました。選んだ保存先をご確認ください。`,
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "書き出しに失敗しました。");
+      setError(describeDataError(e, "書き出しに失敗しました。"));
     } finally {
       setExporting(null);
     }
