@@ -10,6 +10,7 @@ import {
   updateTaskTitle,
 } from "../../lib/supabase/tasks";
 import { fetchLoggedTaskIds } from "../../lib/supabase/emotionLogs";
+import { describeDataError } from "../../lib/supabase/data-errors";
 import { formatShortDate, todayDateString } from "../../lib/date";
 import type { ISODateString, Task, TaskStatus } from "../../types/database";
 import { WeeklySummary } from "./WeeklySummary";
@@ -88,7 +89,7 @@ export function HomeScreen({
       setLoggedTaskIds(await fetchLoggedTaskIds(fetchedTasks.map((t) => t.id)));
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "タスクの取得に失敗しました。");
+      setError(describeDataError(e, "タスクの取得に失敗しました。"));
     } finally {
       setLoading(false);
     }
@@ -122,7 +123,7 @@ export function HomeScreen({
     try {
       await updateTaskTitle(task.id, title);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "タスクの更新に失敗しました。");
+      setError(describeDataError(e, "タスクの更新に失敗しました。"));
       loadTasks();
     }
   }
@@ -135,7 +136,7 @@ export function HomeScreen({
       await deleteTask(taskId);
       setSummaryRefreshKey((k) => k + 1);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "タスクの削除に失敗しました。");
+      setError(describeDataError(e, "タスクの削除に失敗しました。"));
       loadTasks();
     }
   }
@@ -151,7 +152,7 @@ export function HomeScreen({
         setEmotionPromptTaskId(null);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "更新に失敗しました。");
+      setError(describeDataError(e, "更新に失敗しました。"));
       loadTasks();
     }
   }
@@ -164,7 +165,7 @@ export function HomeScreen({
       setNewTaskTitle("");
       loadTasks();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "タスクの追加に失敗しました。");
+      setError(describeDataError(e, "タスクの追加に失敗しました。"));
     }
   }
 

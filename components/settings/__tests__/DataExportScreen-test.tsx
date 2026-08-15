@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { DataExportScreen } from "../DataExportScreen";
+import { UserFacingError } from "../../../lib/supabase/data-errors";
 
 jest.mock("../../../lib/supabase/export", () => ({ fetchAllUserData: jest.fn() }));
 jest.mock("../../../lib/export/saveFile", () => ({ saveTextFile: jest.fn() }));
@@ -91,9 +92,12 @@ test("共有シート経由のときは、保存できたと言い切らない",
   expect(screen.queryByText(/を保存しました。$/)).toBeNull();
 });
 
-test("保存に失敗したら理由を表示する", async () => {
+test("自前で書いた具体的な理由は、そのまま表示する", async () => {
+  // UserFacingError は利用者に見せる前提で書かれた日本語を持つ。
+  // 「共有機能が使えない」は再試行しても直らない条件なので、
+  // 汎用文に潰すと利用者が取れる手を失う（B12）
   saveTextFile.mockRejectedValue(
-    new Error("この端末では共有機能を利用できないため、書き出しできませんでした。"),
+    new UserFacingError("この端末では共有機能を利用できないため、書き出しできませんでした。"),
   );
   await render(<DataExportScreen onBack={jest.fn()} />);
 
@@ -104,12 +108,14 @@ test("保存に失敗したら理由を表示する", async () => {
   ).toBeTruthy();
 });
 
-test("取得に失敗したら理由を表示し、保存はしない", async () => {
-  fetchAllUserData.mockRejectedValue(new Error("データの取得に失敗しました。"));
+test("取得に失敗したらエラーを表示し、保存はしない", async () => {
+  // 外から来た例外の本文は信用しない。日本語の汎用文に落とす（B12）
+  fetchAllUserData.mockRejectedValue(new Error('relation "goals" does not exist'));
   await render(<DataExportScreen onBack={jest.fn()} />);
 
   await fireEvent.press(screen.getByText("CSVで保存"));
 
-  expect(await screen.findByText("データの取得に失敗しました。")).toBeTruthy();
+  expect(await screen.findByText("書き出しに失敗しました。")).toBeTruthy();
+  expect(screen.queryByText(/does not exist/)).toBeNull();
   expect(saveTextFile).not.toHaveBeenCalled();
 });

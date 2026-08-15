@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import { UserFacingError } from "../supabase/data-errors";
 
 /**
  * 書き出したファイルを端末に渡す。
@@ -47,7 +48,7 @@ export async function saveTextFile(
 
 function saveViaDownload(fileName: string, content: string, mimeType: string): void {
   if (typeof document === "undefined") {
-    throw new Error("この環境では書き出しに対応していません。");
+    throw new UserFacingError("この環境では書き出しに対応していません。");
   }
 
   const blob = new Blob([content], { type: mimeType });
@@ -69,7 +70,7 @@ async function saveViaShareSheet(
   uti: string,
 ): Promise<void> {
   if (!(await Sharing.isAvailableAsync())) {
-    throw new Error("この端末では共有機能を利用できないため、書き出しできませんでした。");
+    throw new UserFacingError("この端末では共有機能を利用できないため、書き出しできませんでした。");
   }
 
   // 書き出しは共有シートに渡すための一時ファイルなので、キャッシュ領域に置く。

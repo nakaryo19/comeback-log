@@ -19,6 +19,7 @@ import {
 } from "../../lib/supabase/tasks";
 import { countEmotionLogsForTasks } from "../../lib/supabase/emotionLogs";
 import { useAuth } from "../../lib/supabase/auth-context";
+import { describeDataError } from "../../lib/supabase/data-errors";
 import { SubGoalDetail } from "./SubGoalDetail";
 import type { SubGoal, Task } from "../../types/database";
 import { colors, hitSlop, radius, shadow, spacing } from "../../lib/theme";
@@ -88,7 +89,7 @@ export function GoalManagementScreen({
       .then((counts) => {
         if (counts) setTaskCounts(counts);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "タスクの取得に失敗しました。"));
+      .catch((e) => setError(describeDataError(e, "タスクの取得に失敗しました。")));
   }, [allSubGoalIds]);
 
   function draftFor(subGoal: SubGoal): string {
@@ -102,7 +103,7 @@ export function GoalManagementScreen({
       await renameSubGoal(subGoal.id, title);
       onGoalsChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "中目標の更新に失敗しました。");
+      setError(describeDataError(e, "中目標の更新に失敗しました。"));
     }
   }
 
@@ -117,7 +118,7 @@ export function GoalManagementScreen({
       await renameGoal(goal.id, title);
       onGoalsChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "大目標の更新に失敗しました。");
+      setError(describeDataError(e, "大目標の更新に失敗しました。"));
     }
   }
 
@@ -129,7 +130,7 @@ export function GoalManagementScreen({
       setNewGoalTitle("");
       onGoalsChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "大目標の追加に失敗しました。");
+      setError(describeDataError(e, "大目標の追加に失敗しました。"));
     }
   }
 
@@ -141,7 +142,7 @@ export function GoalManagementScreen({
       setNewSubGoalTitles((prev) => ({ ...prev, [goalId]: "" }));
       onGoalsChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "中目標の追加に失敗しました。");
+      setError(describeDataError(e, "中目標の追加に失敗しました。"));
     }
   }
 
@@ -163,7 +164,7 @@ export function GoalManagementScreen({
         prev && prev.id === id ? { ...prev, impact: { tasks: taskIds.length, emotionLogs } } : prev,
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "削除対象の件数の取得に失敗しました。");
+      setError(describeDataError(e, "削除対象の件数の取得に失敗しました。"));
       setPendingDelete(null);
     }
   }
@@ -180,7 +181,7 @@ export function GoalManagementScreen({
       }
       onGoalsChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "削除に失敗しました。");
+      setError(describeDataError(e, "削除に失敗しました。"));
     }
   }
 
@@ -199,7 +200,7 @@ export function GoalManagementScreen({
       await setGoalAchieved(goal.id, goal.achieved_at === null);
       onGoalsChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "大目標の達成状態の更新に失敗しました。");
+      setError(describeDataError(e, "大目標の達成状態の更新に失敗しました。"));
     }
   }
 
@@ -208,7 +209,7 @@ export function GoalManagementScreen({
       await setSubGoalAchieved(subGoal.id, subGoal.achieved_at === null);
       onGoalsChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "中目標の達成状態の更新に失敗しました。");
+      setError(describeDataError(e, "中目標の達成状態の更新に失敗しました。"));
     }
   }
 
@@ -234,7 +235,7 @@ export function GoalManagementScreen({
     try {
       await reassignTask(task.id, targetSubGoalId);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "タスクの付け替えに失敗しました。");
+      setError(describeDataError(e, "タスクの付け替えに失敗しました。"));
     }
   }
 

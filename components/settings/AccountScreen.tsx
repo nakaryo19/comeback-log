@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../../lib/supabase/auth-context";
+import { describeDataError } from "../../lib/supabase/data-errors";
 import {
   deleteAccount,
   fetchAccountDataSummary,
@@ -37,7 +38,7 @@ export function AccountScreen({
       })
       .catch((e) => {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "データ件数の取得に失敗しました。");
+          setError(describeDataError(e, "データ件数の取得に失敗しました。"));
         }
       });
     return () => {
@@ -53,7 +54,7 @@ export function AccountScreen({
       // 削除済みのユーザーのセッションを残さない。これでログイン画面へ戻る
       await signOut();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "アカウントの削除に失敗しました。");
+      setError(describeDataError(e, "アカウントの削除に失敗しました。"));
       setDeleting(false);
     }
   }

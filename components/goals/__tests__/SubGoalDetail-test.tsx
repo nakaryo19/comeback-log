@@ -93,10 +93,13 @@ describe("<SubGoalDetail />", () => {
     expect(onBack).toHaveBeenCalled();
   });
 
-  test("取得に失敗したらエラーを表示する", async () => {
-    mockFetch.mockRejectedValue(new Error("取得できませんでした"));
+  test("取得に失敗したら日本語のエラーを表示する", async () => {
+    // 例外の原文は画面に出さない。PostgREST が返すのは英語で、
+    // そのまま出すと利用者には何が起きたか分からない（B12）
+    mockFetch.mockRejectedValue(new Error("PGRST116: no rows returned"));
     await render(<SubGoalDetail subGoal={subGoal} onBack={jest.fn()} />);
 
-    expect(await screen.findByText("取得できませんでした")).toBeTruthy();
+    expect(await screen.findByText("タスクの取得に失敗しました。")).toBeTruthy();
+    expect(screen.queryByText(/PGRST116/)).toBeNull();
   });
 });

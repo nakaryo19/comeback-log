@@ -11,6 +11,7 @@ import { EmotionHeatmap } from "./EmotionHeatmap";
 import { HighlightCards } from "./HighlightCards";
 import { TagTrendChart } from "./TagTrendChart";
 import { WeeklySummaryList } from "./WeeklySummaryList";
+import { describeDataError } from "../../lib/supabase/data-errors";
 
 /**
  * 週次サマリーとタグ推移が遡る週数。
@@ -52,7 +53,7 @@ export function AnalyticsScreen({ onBack }: { onBack: () => void }) {
         setHighlights(buildHighlights(weekStats, buildDailyStats(dates, tasks, scores)));
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "分析データの取得に失敗しました。");
+        setError(describeDataError(e, "分析データの取得に失敗しました。"));
       }
     }
 

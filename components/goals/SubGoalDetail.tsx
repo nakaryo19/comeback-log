@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { fetchTasksForSubGoal } from "../../lib/supabase/tasks";
+import { describeDataError } from "../../lib/supabase/data-errors";
 import type { SubGoal, Task, TaskStatus } from "../../types/database";
 import { colors, hitSlop, radius, shadow, spacing } from "../../lib/theme";
 
@@ -32,7 +33,7 @@ export function SubGoalDetail({ subGoal, onBack }: { subGoal: SubGoal; onBack: (
         if (!cancelled) setTasks(fetched);
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "タスクの取得に失敗しました。");
+        if (!cancelled) setError(describeDataError(e, "タスクの取得に失敗しました。"));
       });
     return () => {
       cancelled = true;

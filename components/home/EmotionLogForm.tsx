@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { createEmotionLog } from "../../lib/supabase/emotionLogs";
+import { describeDataError } from "../../lib/supabase/data-errors";
 import type { EmotionLog, EmotionScore, UUID } from "../../types/database";
 import { colors, hitSlop, radius, spacing } from "../../lib/theme";
 import { EMOTION_TAGS } from "../../lib/insights/tags";
@@ -42,7 +43,7 @@ export function EmotionLogForm({
       });
       onSaved(log);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "記録に失敗しました。");
+      setError(describeDataError(e, "記録に失敗しました。"));
     } finally {
       setSaving(false);
     }
