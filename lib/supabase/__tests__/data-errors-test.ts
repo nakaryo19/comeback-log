@@ -1,18 +1,23 @@
-import { describeDataError } from "../data-errors";
+import { describeDataError, UserFacingError } from "../data-errors";
+import { setErrorSink, type ErrorReport } from "../../errorReporter";
 
 const FALLBACK = "タスクの追加に失敗しました。";
 const NETWORK = "通信に失敗しました。電波の良い場所で、もう一度お試しください。";
 
 let warn: jest.SpyInstance;
+let reported: ErrorReport[];
 
 beforeEach(() => {
-  // 未分類のエラーは __DEV__ で console.warn に出す実装。
+  // reportError は __DEV__ で console.warn にも出す実装。
   // --ci ではテスト後のログが失敗扱いになるため黙らせる
   warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+  reported = [];
+  setErrorSink((report) => reported.push(report));
 });
 
 afterEach(() => {
   warn.mockRestore();
+  setErrorSink(null);
 });
 
 test("英語の例外文ではなく、渡した日本語を返す", () => {
@@ -50,17 +55,25 @@ test("操作ごとの文言はそのまま通す", () => {
   );
 });
 
-test("未分類のエラーは開発時にコンソールへ残す", () => {
-  // 利用者には出さないぶん、開発中に握りつぶすと原因追跡ができなくなる
+test("未分類のエラーは記録に回す", () => {
+  // 利用者には出さないぶん、握りつぶすと原因追跡ができなくなる（B5）
   describeDataError(new Error("PGRST116: no rows returned"), FALLBACK);
 
-  expect(warn).toHaveBeenCalled();
-  expect(JSON.stringify(warn.mock.calls)).toContain("PGRST116");
+  expect(reported).toEqual([
+    { context: FALLBACK, message: "PGRST116: no rows returned", stack: expect.any(String) },
+  ]);
 });
 
-test("通信エラーはコンソールに出さない", () => {
-  // 原因が分かっている経路なので、開発中のノイズにしない
+test("通信エラーは記録しない", () => {
+  // 原因が分かっている経路で、直せる不具合ではない。行を消費するだけ
   describeDataError(new Error("Network request failed"), FALLBACK);
 
-  expect(warn).not.toHaveBeenCalled();
+  expect(reported).toEqual([]);
+});
+
+test("自前の日本語を持つ例外は記録しない", () => {
+  // 想定済みの失敗であって、こちらが知らない不具合ではない
+  describeDataError(new UserFacingError("この環境では書き出しに対応していません。"), FALLBACK);
+
+  expect(reported).toEqual([]);
 });

@@ -6,7 +6,12 @@ import { AuthScreen } from './components/auth/AuthScreen';
 import { PasswordRecoveryScreen } from './components/auth/PasswordRecoveryScreen';
 import { MainApp } from './components/MainApp';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { installErrorLogging } from './lib/supabase/errorLog';
 import { colors } from './lib/theme';
+
+// 描画より前に差し込む。ErrorBoundary が最初の描画で例外を捕まえる可能性があるため、
+// useEffect の中では間に合わない
+installErrorLogging();
 
 function AppContent() {
   const { session, loading, recovering } = useAuth();

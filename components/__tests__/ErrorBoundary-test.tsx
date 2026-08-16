@@ -1,6 +1,7 @@
 import { Text } from "react-native";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { ErrorBoundary } from "../ErrorBoundary";
+import { setErrorSink, type ErrorReport } from "../../lib/errorReporter";
 
 /** 描画時に例外を投げるかどうかを外から切り替えられる子 */
 function Boom({ shouldThrow }: { shouldThrow: boolean }) {
@@ -9,8 +10,13 @@ function Boom({ shouldThrow }: { shouldThrow: boolean }) {
 }
 
 let consoleError: jest.SpyInstance;
+let consoleWarn: jest.SpyInstance;
+let reported: ErrorReport[];
 
 beforeEach(() => {
+  reported = [];
+  setErrorSink((report) => reported.push(report));
+  consoleWarn = jest.spyOn(console, "warn").mockImplementation(() => {});
   // React は境界が拾った例外も別途 console.error に出す。__DEV__ では
   // ErrorBoundary 自身も出す。--ci ではテスト後のログが失敗扱いになるため黙らせる
   consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
@@ -18,6 +24,24 @@ beforeEach(() => {
 
 afterEach(() => {
   consoleError.mockRestore();
+  consoleWarn.mockRestore();
+  setErrorSink(null);
+});
+
+test("受け止めた例外を記録に回す", async () => {
+  // 代替画面を出して終わりだと、白画面は防げても**何が起きたか誰にも分からない**。
+  // React の描画例外はプロセスを落とさないため、ストアのクラッシュレポートにも出ない（B5）
+  await render(
+    <ErrorBoundary>
+      <Boom shouldThrow />
+    </ErrorBoundary>,
+  );
+
+  expect(reported).toHaveLength(1);
+  expect(reported[0]).toMatchObject({
+    context: "ErrorBoundary",
+    message: "Something went wrong in English",
+  });
 });
 
 test("例外が無ければ子をそのまま描画する", async () => {

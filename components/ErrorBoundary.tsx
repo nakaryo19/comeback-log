@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { reportError } from "../lib/errorReporter";
 import { colors, radius, spacing } from "../lib/theme";
 
 type Props = { children: ReactNode };
@@ -22,12 +23,12 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack?: string | null }) {
-    // 開発時のみ。外部には送らない。
-    // エラーの文脈には感情ログの自由記述が混ざりうるため、送信先を作ってはならない（CLAUDE.md）。
-    // B5（エラー監視）を入れるときも、この原則が満たせるかを先に確かめること
     if (__DEV__) {
       console.error("[ErrorBoundary]", error, info.componentStack);
     }
+    // 記録先は自前の Supabase だけ。外部の監視サービスへは送らない。
+    // エラーの文脈には感情ログの自由記述が混ざりうるため（CLAUDE.md / B5 の判断）
+    reportError("ErrorBoundary", error);
   }
 
   handleRetry = () => {

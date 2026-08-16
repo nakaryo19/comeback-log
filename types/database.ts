@@ -72,6 +72,21 @@ export type PublicProfile = {
 };
 
 /**
+ * 本番で起きたエラーの記録（リリース計画 B5）。
+ * 閲覧は運用者がダッシュボードから行うため、アプリからは insert しかしない。
+ */
+export type ErrorLog = {
+  id: UUID;
+  user_id: UUID;
+  context: string;
+  message: string;
+  stack: string | null;
+  app_version: string | null;
+  platform: string | null;
+  created_at: ISODateTimeString;
+};
+
+/**
  * Supabaseクライアントに渡すDBスキーマ型。
  * `supabase.from("goals")` 等の型推論に利用する。
  */
@@ -111,6 +126,13 @@ export interface Database {
         Insert: Omit<PublicProfile, "id" | "created_at" | "updated_at"> &
           Partial<Pick<PublicProfile, "id" | "created_at" | "updated_at">>;
         Update: Partial<Omit<PublicProfile, "id">>;
+        Relationships: [];
+      };
+      error_logs: {
+        Row: ErrorLog;
+        Insert: Omit<ErrorLog, "id" | "user_id" | "created_at"> &
+          Partial<Pick<ErrorLog, "id" | "user_id" | "created_at">>;
+        Update: Partial<Omit<ErrorLog, "id">>;
         Relationships: [];
       };
     };
