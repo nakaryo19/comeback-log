@@ -19,13 +19,21 @@ const GENERIC = "処理できませんでした。しばらく時間をおいて
 
 const NETWORK = "通信に失敗しました。電波の良い場所で、もう一度お試しください。";
 
+/**
+ * 未確認のアドレスでログインしようとした場合の文言。
+ * 画面側がこの状態を見分けて再送導線を出すため、定数として公開する
+ * （文字列を画面側に書き写すと、片方だけ直したときに黙って壊れる）。
+ */
+export const EMAIL_NOT_CONFIRMED =
+  "メールアドレスの確認が済んでいません。確認メールのリンクを開いてください。";
+
 const BY_CODE: Record<string, string> = {
   // ── ログイン ──
   invalid_credentials: INVALID_CREDENTIALS,
   // 存在しないユーザーでも invalid_credentials が返るのが既定だが、
   // 設定によっては user_not_found が返る。文言を分けると探索の手がかりになる
   user_not_found: INVALID_CREDENTIALS,
-  email_not_confirmed: "メールアドレスの確認が済んでいません。確認メールのリンクを開いてください。",
+  email_not_confirmed: EMAIL_NOT_CONFIRMED,
   user_banned: "このアカウントは現在ご利用いただけません。",
 
   // ── 新規登録 ──
