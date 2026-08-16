@@ -4,7 +4,12 @@ import * as Linking from "expo-linking";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./client";
 import { describeAuthError } from "./auth-errors";
-import { describeLinkError, parseRecoveryUrl, recoveryRedirectTo } from "./recovery-link";
+import {
+  confirmRedirectTo,
+  describeLinkError,
+  parseAuthLink,
+  recoveryRedirectTo,
+} from "./auth-links";
 
 interface AuthContextValue {
   session: Session | null;
@@ -14,7 +19,16 @@ interface AuthContextValue {
   recovering: boolean;
   /** 再設定リンクが無効・期限切れだった場合の理由（リンクを踏んでいなければ null） */
   recoveryLinkError: string | null;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  /**
+   * 新規登録。メールアドレス確認が有効なため、成功しても即ログインにはならない。
+   * `needsConfirmation` が true の間は、確認メールのリンクを開いてもらう必要がある。
+   */
+  signUp: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  /** 確認メールの再送。届かない・見失った場合の唯一の出口 */
+  resendConfirmation: (email: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<{ error: string | null }>;
@@ -80,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function handleUrl(url: string | null) {
       if (!url || !active) return;
-      const link = parseRecoveryUrl(url);
+      const link = parseAuthLink(url);
       if (!link) return;
 
       if (link.kind === "error") {
@@ -101,9 +115,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      setRecoveryLinkError(null);
+
+      // メール確認のリンクは、セッションが張れた時点で目的を達している。
+      // そのままアプリ本体へ入れる（確認しただけの人にパスワード再設定を求めない）。
+      if (link.type === "signup") return;
+
       // setSession が発火させるのは SIGNED_IN であって PASSWORD_RECOVERY ではない。
       // そのままだと復旧画面を飛ばしてアプリ本体に入ってしまうため、ここで明示的に立てる。
-      setRecoveryLinkError(null);
       setRecovering(true);
     }
 
@@ -121,7 +140,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signUp(email: string, password: string) {
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: confirmRedirectTo() },
+    });
+    if (error) return { error: describeAuthError(error), needsConfirmation: false };
+
+    // 確認が有効なとき、Supabase はセッションを返さない。
+    // 返ってきた場合は確認が無効（自動確認）ということなので、そのままログインさせる。
+    //
+    // なお **既に登録済みのアドレスでも、ここはエラーにならず成功として返る**。
+    // Supabase が意図的にそうしている（エラーを分けると、アドレスが登録済みかを
+    // 外部から探れてしまう）。呼び出し側も「送信しました」と同じ案内を出すこと。
+    return { error: null, needsConfirmation: data.session === null };
+  }
+
+  async function resendConfirmation(email: string) {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: confirmRedirectTo() },
+    });
     return { error: describeAuthError(error) };
   }
 
@@ -167,6 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         recovering,
         recoveryLinkError,
         signUp,
+        resendConfirmation,
         signIn,
         signOut,
         sendPasswordReset,

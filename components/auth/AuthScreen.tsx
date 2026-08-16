@@ -1,21 +1,31 @@
 import { useState } from "react";
 import { Linking, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../../lib/supabase/auth-context";
+import { EMAIL_NOT_CONFIRMED } from "../../lib/supabase/auth-errors";
 import { legalLinks } from "../../lib/legalLinks";
 import { colors, hitSlop, radius, shadow, spacing } from "../../lib/theme";
 
-type Mode = "signIn" | "signUp" | "reset";
+/** `confirm` は入力欄を持たず、確認メールを開いてもらうための案内だけを出す */
+type Mode = "signIn" | "signUp" | "reset" | "confirm";
 
 const TITLES: Record<Mode, string> = {
   signIn: "ログイン",
   signUp: "新規登録",
   reset: "パスワードの再設定",
+  confirm: "確認メールを送りました",
+};
+
+const SUBMIT_LABELS: Record<Mode, string> = {
+  signIn: "ログイン",
+  signUp: "登録する",
+  reset: "再設定リンクを送る",
+  confirm: "確認メールを再送する",
 };
 
 const links = legalLinks();
 
 export function AuthScreen() {
-  const { signIn, signUp, sendPasswordReset, recoveryLinkError } = useAuth();
+  const { signIn, signUp, resendConfirmation, sendPasswordReset, recoveryLinkError } = useAuth();
   const [mode, setMode] = useState<Mode>("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,7 +33,8 @@ export function AuthScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const needsPassword = mode !== "reset";
+  const needsPassword = mode === "signIn" || mode === "signUp";
+  const showsInputs = mode !== "confirm";
   const canSubmit = !submitting && !!email && (!needsPassword || !!password);
 
   function switchTo(next: Mode) {
@@ -36,6 +47,17 @@ export function AuthScreen() {
     setError(null);
     setNotice(null);
     setSubmitting(true);
+
+    if (mode === "confirm") {
+      const { error: resendError } = await resendConfirmation(email);
+      setSubmitting(false);
+      if (resendError) {
+        setError(resendError);
+        return;
+      }
+      setNotice("確認メールを再送しました。");
+      return;
+    }
 
     if (mode === "reset") {
       const { error: resetError } = await sendPasswordReset(email);
@@ -54,10 +76,30 @@ export function AuthScreen() {
       return;
     }
 
-    const { error: authError } =
-      mode === "signIn" ? await signIn(email, password) : await signUp(email, password);
+    if (mode === "signUp") {
+      const { error: signUpError, needsConfirmation } = await signUp(email, password);
+      setSubmitting(false);
+      if (signUpError) {
+        setError(signUpError);
+        return;
+      }
+      // 確認が要らない設定なら、この時点で既にログイン済み。画面は自然に切り替わる
+      if (needsConfirmation) switchTo("confirm");
+      return;
+    }
+
+    const { error: authError } = await signIn(email, password);
     setSubmitting(false);
-    if (authError) setError(authError);
+    if (!authError) return;
+
+    // 未確認のままログインしようとした人には、エラーを出すだけでは出口がない。
+    // 再送できる画面へ送る
+    if (authError === EMAIL_NOT_CONFIRMED) {
+      switchTo("confirm");
+      setNotice(EMAIL_NOT_CONFIRMED);
+      return;
+    }
+    setError(authError);
   }
 
   return (
@@ -73,17 +115,29 @@ export function AuthScreen() {
           </Text>
         )}
 
+        {mode === "confirm" && (
+          // 迷惑メールへの言及は保険ではなく実務上必須：独自ドメインを持たない構成のため
+          // 送信ドメイン認証（SPF / DKIM）が張れず、振り分けられる可能性が現実にある
+          <Text style={styles.description}>
+            {email} 宛にリンクを送りました。{"\n"}
+            リンクを開くと登録が完了します。{"\n"}
+            数分待っても届かない場合は、迷惑メールフォルダもご確認ください。
+          </Text>
+        )}
+
         {recoveryLinkError && <Text style={styles.error}>{recoveryLinkError}</Text>}
 
-        <TextInput
-          style={styles.input}
-          placeholder="メールアドレス"
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
+        {showsInputs && (
+          <TextInput
+            style={styles.input}
+            placeholder="メールアドレス"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+        )}
         {needsPassword && (
           <TextInput
             style={styles.input}
@@ -104,13 +158,7 @@ export function AuthScreen() {
           disabled={!canSubmit}
         >
           <Text style={styles.submitButtonText}>
-            {submitting
-              ? "処理中..."
-              : mode === "signIn"
-                ? "ログイン"
-                : mode === "signUp"
-                  ? "登録する"
-                  : "再設定リンクを送る"}
+            {submitting ? "処理中..." : SUBMIT_LABELS[mode]}
           </Text>
         </TouchableOpacity>
 

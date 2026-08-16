@@ -9,6 +9,7 @@ Supabase ダッシュボードの **Authentication → Emails** に貼り付け�
 | ファイル | ダッシュボードの貼り付け先 | 件名（Subject heading） | 状態 |
 |---|---|---|---|
 | `reset-password.html` | Reset Password | `【挽回ログ】パスワード再設定のご案内` | 使用中 |
+| `confirm-signup.html` | Confirm signup | `【挽回ログ】メールアドレスのご確認` | 使用中 |
 
 **件名は本文とは別のフィールド**で、本文だけ貼り替えても既定の英語が残る。
 テンプレートごとに保存ボタンが分かれている点にも注意する。
@@ -16,6 +17,20 @@ Supabase ダッシュボードの **Authentication → Emails** に貼り付け�
 差し替えは**保存後に送信されるメールから**効く。確認するときは、
 保存したうえで新しく1通送ること。Gmail は同じ件名のメールを
 1つのスレッドにまとめるため、古いメールを開いていないか受信時刻で確かめる。
+
+## ダッシュボード側で必要な設定
+
+確認メールは、テンプレートを貼るだけでは送られない。次の2つが揃って初めて機能する。
+
+1. **Authentication → Sign In / Providers → Email → Confirm email を ON**
+   （既定は OFF＝自動確認。OFF のままだと未検証のアドレスで本登録できてしまう）
+2. **Authentication → URL Configuration → Redirect URLs に確認リンクの戻り先を登録**
+   - `comebacklog://auth/confirm`（開発ビルド・本番アプリ）
+   - `exp://*/--/auth/confirm`（Expo Go で確認する場合）
+   - Web の戻り先はオリジンそのもの（`lib/supabase/auth-links.ts` を参照）
+
+登録し忘れると、リンクを踏んでもアプリに戻らず、利用者からは
+「メールは届くのに登録が終わらない」という状態に見える。
 
 ## なぜ差し替えるか
 

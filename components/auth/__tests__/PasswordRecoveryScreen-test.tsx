@@ -20,6 +20,7 @@ beforeEach(() => {
     recoveryLinkError: null,
     signIn: jest.fn(),
     signUp: jest.fn(),
+    resendConfirmation: jest.fn(),
     signOut: jest.fn(),
     sendPasswordReset: jest.fn(),
     updatePassword,
