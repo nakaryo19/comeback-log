@@ -16,6 +16,8 @@
  * ここで一律の文言に潰さない。
  */
 
+import { reportError } from "../errorReporter";
+
 /**
  * 利用者にそのまま見せてよい文言を持つ例外。
  *
@@ -49,7 +51,7 @@ const NETWORK_PATTERNS = [
  *
  * **例外の原文は決して返さない。** PostgREST や fetch の英語をそのまま画面に出さない
  * ことが目的だからである（`auth-errors.ts` と同じ方針）。
- * 追跡のため、開発時のみコンソールへ出す。
+ * 原文は `reportError()` に渡して記録する（B5）。
  */
 export function describeDataError(error: unknown, fallback: string): string {
   // 自前で書いた日本語は、汎用文より具体的なので優先する
@@ -62,8 +64,8 @@ export function describeDataError(error: unknown, fallback: string): string {
     return NETWORK;
   }
 
-  if (__DEV__) {
-    console.warn("[data]", fallback, "/ 原因:", raw);
-  }
+  // 分類できなかった＝こちらが想定していない失敗。本番でこそ知りたいので記録する。
+  // 通信エラーは上で返しているため、ここには来ない
+  reportError(fallback, error);
   return fallback;
 }
