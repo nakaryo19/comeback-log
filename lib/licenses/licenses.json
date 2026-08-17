@@ -710,7 +710,7 @@
     },
     {
       "name": "@expo/cli",
-      "version": "57.0.13",
+      "version": "57.0.15",
       "license": "MIT",
       "text": 4
     },
@@ -728,7 +728,7 @@
     },
     {
       "name": "@expo/config-plugins",
-      "version": "57.0.7",
+      "version": "57.0.8",
       "license": "MIT",
       "text": 4
     },
@@ -770,7 +770,7 @@
     },
     {
       "name": "@expo/fingerprint",
-      "version": "0.20.6",
+      "version": "0.20.7",
       "license": "MIT",
       "text": 4
     },
@@ -782,7 +782,7 @@
     },
     {
       "name": "@expo/inline-modules",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "license": "MIT",
       "text": 4
     },
@@ -794,7 +794,7 @@
     },
     {
       "name": "@expo/local-build-cache-provider",
-      "version": "57.0.5",
+      "version": "57.0.6",
       "license": "MIT",
       "text": 4
     },
@@ -812,7 +812,7 @@
     },
     {
       "name": "@expo/metro-config",
-      "version": "57.0.7",
+      "version": "57.0.8",
       "license": "MIT",
       "text": 4
     },
@@ -842,7 +842,7 @@
     },
     {
       "name": "@expo/prebuild-config",
-      "version": "57.0.10",
+      "version": "57.0.12",
       "license": "MIT",
       "text": 4
     },
@@ -854,7 +854,7 @@
     },
     {
       "name": "@expo/router-server",
-      "version": "57.0.5",
+      "version": "57.0.6",
       "license": "MIT",
       "text": 4
     },
@@ -1391,7 +1391,7 @@
     },
     {
       "name": "babel-preset-expo",
-      "version": "57.0.6",
+      "version": "57.0.7",
       "license": "MIT",
       "text": 4
     },
@@ -1817,25 +1817,25 @@
     },
     {
       "name": "expo",
-      "version": "57.0.11",
+      "version": "57.0.13",
       "license": "MIT",
       "text": 4
     },
     {
       "name": "expo-asset",
-      "version": "57.0.9",
+      "version": "57.0.11",
       "license": "MIT",
       "text": 4
     },
     {
       "name": "expo-constants",
-      "version": "57.0.9",
+      "version": "57.0.11",
       "license": "MIT",
       "text": 4
     },
     {
       "name": "expo-file-system",
-      "version": "57.0.2",
+      "version": "57.0.4",
       "license": "MIT",
       "text": 4
     },
@@ -1853,19 +1853,19 @@
     },
     {
       "name": "expo-linking",
-      "version": "57.0.5",
+      "version": "57.0.6",
       "license": "MIT",
       "text": 4
     },
     {
       "name": "expo-modules-autolinking",
-      "version": "57.0.9",
+      "version": "57.0.10",
       "license": "MIT",
       "text": 4
     },
     {
       "name": "expo-modules-core",
-      "version": "57.0.10",
+      "version": "57.0.11",
       "license": "MIT",
       "text": 4
     },
@@ -1877,13 +1877,19 @@
     },
     {
       "name": "expo-server",
-      "version": "57.0.1",
+      "version": "57.0.3",
       "license": "MIT",
       "text": 4
     },
     {
       "name": "expo-sharing",
-      "version": "57.0.10",
+      "version": "57.0.12",
+      "license": "MIT",
+      "text": 4
+    },
+    {
+      "name": "expo-splash-screen",
+      "version": "57.0.6",
       "license": "MIT",
       "text": 4
     },
@@ -2582,7 +2588,7 @@
     },
     {
       "name": "multitars",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "license": "MIT",
       "text": 83
     },
@@ -2991,6 +2997,12 @@
       "version": "5.2.1",
       "license": "MIT",
       "text": 179
+    },
+    {
+      "name": "sandbox-cli-detector",
+      "version": "0.2.0",
+      "license": "MIT",
+      "text": 30
     },
     {
       "name": "sax",
