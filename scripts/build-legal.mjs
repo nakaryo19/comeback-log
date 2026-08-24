@@ -1,5 +1,11 @@
 /**
- * docs/legal/ の Markdown を静的 HTML に変換する（Cloudflare Pages 配信用）。
+ * 公開サイト（Cloudflare Pages）を生成する。
+ * トップのランディングページ（`scripts/lp.mjs`）と、docs/legal/ の Markdown を
+ * 変換した法務ページを、同じ dist-legal/ に出力する。
+ *
+ * **トップページは App Store Connect のサポートURLを兼ねる**（リリース計画 C4）。
+ * ファイル名が build-legal のままなのは、Cloudflare Pages 側にビルドコマンドを
+ * 登録済みで、改名すると管理画面の設定変更が要るため。
  *
  * 本体リポジトリを private にしたうえで、法務文書だけを公開URLで配信するための最小の仕組み。
  * App Store 提出にはプライバシーポリシーの公開URLが必須（商用リリース前チェックリスト §1-2）。
@@ -18,9 +24,10 @@
  * ローカルでは docs/legal/values.local.json、Cloudflare Pages では
  * 環境変数 LEGAL_VALUES（JSON文字列）から読む。
  */
-import { mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { LP_STYLE, LP_TOKENS, renderLandingPage } from "./lp.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceDir = join(root, "docs", "legal");
@@ -262,15 +269,19 @@ nav a:hover { text-decoration: underline; }
 footer { max-width: 44rem; margin: 4rem auto 0; padding-top: 1.5rem; border-top: 1px solid var(--line); font-size: 0.8rem; color: var(--muted); }
 `;
 
-function page({ title, body, showBackLink }) {
+function page({ title, body, showBackLink, description }) {
   const nav = showBackLink ? '<nav><a href="./">← 挽回ログ</a></nav>' : "";
+  const meta = description
+    ? `<meta name="description" content="${escapeHtml(description)}">\n`
+    : "";
   return `<!doctype html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)} | ${escapeHtml(SITE_TITLE)}</title>
-<style>${STYLE}</style>
+<title>${escapeHtml(title)}</title>
+${meta}<link rel="icon" href="favicon.png">
+<style>${LP_TOKENS}${STYLE}${LP_STYLE}</style>
 </head>
 <body>
 ${nav}
@@ -283,14 +294,22 @@ ${body}
 `;
 }
 
-function indexBody() {
-  const links = PAGES.map((p) => `<li><a href="${p.output}">${escapeHtml(p.title)}</a></li>`).join("\n");
-  return `<h1>挽回ログ</h1>
-<p>目標達成までのタスクと、そのときの気持ちを一緒に記録するアプリです。</p>
-<h2>各種文書</h2>
-<ul>
-${links}
-</ul>`;
+/**
+ * トップページで使う値。法務文書と違い {{...}} を本文に埋め込む形ではないため、
+ * ここで明示的に必須チェックをする（サポートURLに連絡先が無いのは要件を満たさない）。
+ */
+function landingValues(values) {
+  const required = ["連絡先メールアドレス", "運営者名"];
+  const missing = required.filter((key) => !values[key]);
+  if (missing.length > 0) {
+    throw new Error(`トップページに必要な値が未設定です: ${missing.join(", ")}`);
+  }
+  return {
+    escapeHtml,
+    contactEmail: values["連絡先メールアドレス"],
+    operatorName: values["運営者名"],
+    pages: PAGES,
+  };
 }
 
 // -------------------------------------------------------------------- 実行
@@ -305,7 +324,7 @@ function main() {
     const raw = readFileSync(join(sourceDir, target.source), "utf8");
     const filled = substitute(raw, values, target.source);
     const html = page({
-      title: target.title,
+      title: `${target.title} | ${SITE_TITLE}`,
       body: renderMarkdown(filled),
       showBackLink: true,
     });
@@ -315,9 +334,22 @@ function main() {
 
   writeFileSync(
     join(outputDir, "index.html"),
-    page({ title: "ホーム", body: indexBody(), showBackLink: false }),
+    page({
+      title: `${SITE_TITLE}｜タスクと気持ちを一緒に記録する`,
+      description:
+        "挽回ログは、目標に向けた毎日のタスクと、そのときの気持ちを一緒に記録するアプリです。",
+      body: renderLandingPage(landingValues(values)),
+      showBackLink: false,
+    }),
   );
   console.log("  index.html");
+
+  // トップページのロゴと favicon。アプリと同じ絵柄を使う（assets/brand/generate_icons.py 生成）
+  for (const name of ["icon.png", "favicon.png"]) {
+    copyFileSync(join(root, "assets", name), join(outputDir, name));
+    console.log(`  ${name}`);
+  }
+
   console.log(`完了: ${PAGES.length + 1} ページを dist-legal/ に出力しました。`);
 }
 
