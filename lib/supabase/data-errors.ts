@@ -16,7 +16,7 @@
  * ここで一律の文言に潰さない。
  */
 
-import { reportError } from "../errorReporter";
+import { describeThrown, reportError } from "../errorReporter";
 
 /**
  * 利用者にそのまま見せてよい文言を持つ例外。
@@ -57,8 +57,9 @@ export function describeDataError(error: unknown, fallback: string): string {
   // 自前で書いた日本語は、汎用文より具体的なので優先する
   if (error instanceof UserFacingError) return error.message;
 
-  const raw = error instanceof Error ? error.message : String(error);
-  const lowered = raw.toLowerCase();
+  // `String(error)` を使わない。PostgREST のエラーは Error ではないため
+  // `"[object Object]"` になり、下の通信判定が永久に外れる（errorReporter.ts 参照）
+  const lowered = describeThrown(error).message.toLowerCase();
 
   if (NETWORK_PATTERNS.some((pattern) => lowered.includes(pattern))) {
     return NETWORK;

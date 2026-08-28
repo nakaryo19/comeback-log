@@ -92,10 +92,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let active = true;
 
+    // 同じリンクを二度処理しない。
+    //
+    // getInitialURL と url イベントは**同じ URL を両方が返しうる**（アプリが
+    // 起動済みのままリンクを踏んだ場合など）。素通しすると setSession が同じ
+    // トークンで二重に走る。**リフレッシュトークンは一度しか使えない**ため、
+    // 二本目が使用済みのトークンでリフレッシュを試みると、張れたはずの
+    // セッションを壊しうる。取りこぼしを防ぐために両方を見る以上、
+    // 重複はここで落とす必要がある。
+    const handled = new Set<string>();
+
     async function handleUrl(url: string | null) {
       if (!url || !active) return;
       const link = parseAuthLink(url);
       if (!link) return;
+      if (handled.has(url)) return;
+      handled.add(url);
 
       if (link.kind === "error") {
         setRecoveryLinkError(link.message);
