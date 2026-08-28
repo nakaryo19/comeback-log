@@ -47,9 +47,48 @@ function truncate(text: string, limit: number): string {
  * **決して throw しない。** 記録に失敗したことで画面が壊れたら本末転倒で、
  * しかも壊れるのは「既に何かが失敗している」場面である。
  */
+/**
+ * 例外を、記録して意味のある1行にする。
+ *
+ * **`String(error)` に頼ってはいけない。** supabase-js が返す PostgREST のエラーは
+ * `Error` のインスタンスではなく `{ message, details, hint, code }` の素のオブジェクトで、
+ * `String()` すると `"[object Object]"` になる。実際これで、2026-08-28 までに記録された
+ * DB 由来のエラーはすべて本文を失っていた（原因調査が一度も成立しなかった）。
+ *
+ * `code` は残す。PostgREST のコードは利用者には見せないが（data-errors.ts）、
+ * **運用者にとっては原因の当たりを付ける唯一の手がかり**になる。
+ */
+export function describeThrown(error: unknown): { message: string; stack?: string } {
+  if (error instanceof Error) {
+    return { message: error.message, stack: error.stack };
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const shape = error as { message?: unknown; code?: unknown; details?: unknown };
+    const parts = [shape.message, shape.details]
+      .filter((part): part is string => typeof part === "string" && part.length > 0)
+      .join(" / ");
+    const code = typeof shape.code === "string" && shape.code.length > 0 ? `[${shape.code}] ` : "";
+
+    // message も details も無い形は想定外。JSON にして中身ごと残す
+    if (!parts) return { message: `${code}${safeJson(error)}` };
+    return { message: `${code}${parts}` };
+  }
+
+  return { message: String(error) };
+}
+
+/** 循環参照を含む値でも記録を諦めない。記録処理は決して throw させない */
+function safeJson(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
 export function reportError(context: string, error: unknown): void {
-  const message = error instanceof Error ? error.message : String(error);
-  const stack = error instanceof Error ? error.stack : undefined;
+  const { message, stack } = describeThrown(error);
 
   if (__DEV__) {
     console.warn(`[error] ${context}:`, message);
