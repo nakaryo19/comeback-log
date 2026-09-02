@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../lib/supabase/auth-context";
+import { describeDataError } from "../lib/supabase/data-errors";
 import { fetchGoalTree, type GoalWithSubGoals } from "../lib/supabase/goals";
 import { OnboardingScreen } from "./goals/OnboardingScreen";
 import { GoalManagementScreen } from "./goals/GoalManagementScreen";
@@ -9,7 +10,7 @@ import { AnalyticsScreen } from "./analytics/AnalyticsScreen";
 import { AccountScreen } from "./settings/AccountScreen";
 import { DataExportScreen } from "./settings/DataExportScreen";
 import { AboutScreen } from "./settings/AboutScreen";
-import { colors, radius, shadow, spacing } from "../lib/theme";
+import { colors, hitSlop, radius, shadow, spacing } from "../lib/theme";
 
 type ViewName = "home" | "goals" | "analytics" | "account" | "export" | "about";
 
@@ -18,15 +19,60 @@ export function MainApp() {
   const [goals, setGoals] = useState<GoalWithSubGoals[] | null>(null);
   const [view, setView] = useState<ViewName>("home");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
+  /**
+   * 目標の取得は**必ず失敗しうる**ものとして扱う。
+   *
+   * 直す前はここに try/catch が無く、`fetchGoalTree` が投げると `goals` が
+   * null のままになり、画面は「読み込み中...」で永久に止まっていた。
+   * しかも下の分岐は読み込み中の表示だけを返すため **☰ メニューも描画されず**、
+   * ログアウトも再試行も画面移動もできない完全な行き止まりになる。
+   * 通信が一度失敗しただけでアプリが使えなくなるということで、
+   * これは利用者から見て「アプリが壊れている」のと区別が付かない。
+   */
   const loadGoals = useCallback(async () => {
     if (!user) return;
-    setGoals(await fetchGoalTree(user.id));
+    try {
+      // 解除は成功してから。先に同期で消すと、この関数が useEffect から呼ばれる関係で
+      // 「効果の中で直接 setState する」形になり、再試行のたびに一瞬エラーが消えて瞬く
+      setGoals(await fetchGoalTree(user.id));
+      setLoadError(null);
+    } catch (e) {
+      setLoadError(describeDataError(e, "目標の読み込みに失敗しました。"));
+    }
   }, [user]);
 
   useEffect(() => {
     loadGoals();
   }, [loadGoals]);
+
+  // 失敗の表示は読み込み中の判定より先に置く。`goals` は失敗しても null のままなので、
+  // 順序を逆にすると読み込み中の表示に吸われてエラーに辿り着けない
+  if (loadError) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>{loadError}</Text>
+        {/* 出口を2つ用意する。再試行は通信が戻れば直る場合のため、
+            ログアウトはそれでも直らない場合の最後の逃げ道 */}
+        <TouchableOpacity
+          style={styles.retryButton}
+          accessibilityRole="button"
+          onPress={loadGoals}
+        >
+          <Text style={styles.retryButtonText}>再試行</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          hitSlop={hitSlop}
+          style={styles.signOutLink}
+          accessibilityRole="button"
+          onPress={signOut}
+        >
+          <Text style={styles.signOutLinkText}>ログアウト</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (!user || goals === null) {
     return (
@@ -145,6 +191,32 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: colors.textMuted,
+  },
+  errorText: {
+    color: colors.danger,
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: "center",
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.xl,
+  },
+  retryButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xxl,
+  },
+  retryButtonText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  signOutLink: {
+    marginTop: spacing.lg,
+  },
+  signOutLinkText: {
+    color: colors.primary,
+    fontSize: 14,
   },
   topBar: {
     flexDirection: "row",
