@@ -30,11 +30,18 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(
   },
 );
 
-// アプリがバックグラウンドに回っている間はトークンの自動リフレッシュを止める
+// アプリがバックグラウンドに回っている間はトークンの自動リフレッシュを止める。
+//
+// **`inactive` では止めない。** 通知の引き下ろし、マルチタスク、iPad での
+// iPhone 互換モードなど、**画面が見えたまま `inactive` が来る場面は多い**。
+// ここで止めて `active` で開始し直すと、`startAutoRefresh` は再開時に
+// 1回ティックを即座に回す作りのため（auth-js の `_startAutoRefresh`）、
+// 見た目には何も起きていないのにトークン更新の往復だけが増える。
+// 本当に止めたいのは背面に回ったときだけなので、`background` に限定する。
 AppState.addEventListener("change", (state) => {
   if (state === "active") {
     supabase.auth.startAutoRefresh();
-  } else {
+  } else if (state === "background") {
     supabase.auth.stopAutoRefresh();
   }
 });
