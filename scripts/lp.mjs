@@ -22,7 +22,14 @@ const CONTENT = {
   lead:
     "目標に向けた毎日のタスクと、そのときの気持ちを一緒に記録するアプリです。" +
     "続けた記録がたまると、自分がどんなときに動けて、どんなときに止まりやすいのかが見えてきます。",
-  status: "iOS 版を準備中です。公開までもうしばらくお待ちください。",
+  // 公開前は「準備中です」の文言を置いていた場所。2026-09-05 に App Store で
+  // 公開されたので、入手先へのリンクに差し替えた。
+  // URL は末尾の ID だけで正規URLへ転送される短い形を使う。アプリ名を含む形は
+  // 名前を変えたときに古い綴りが残り、パーセントエンコードで読みにくくもなる。
+  appStore: {
+    label: "App Store で入手",
+    url: "https://apps.apple.com/jp/app/id6805856355",
+  },
 
   audience: {
     title: "こんなときに",
@@ -123,10 +130,15 @@ export const LP_STYLE = `
 .lp-header span { font-size: 1.05rem; font-weight: 600; }
 .hero h1 { font-size: 1.9rem; line-height: 1.5; margin: 0 0 1rem; letter-spacing: 0.01em; }
 .hero .lead { font-size: 1rem; color: var(--muted); margin: 0 0 1.5rem; }
+/* 入手先へのリンク。丸みのある下地に載せるので、既定の下線とリンク色は打ち消す
+   （共通スタイルの a への color 指定はクラスの方が強いので届かないが、
+   下線は指定しないと残る）。押せることは hover の濃さで示す */
 .status {
   display: inline-block; padding: 0.5rem 0.9rem; border-radius: 999px;
   background: var(--brand-muted); color: var(--brand); font-size: 0.85rem;
+  text-decoration: none; font-weight: 600;
 }
+.status:hover { background: var(--brand); color: var(--brand-on); }
 .lp section { margin-top: 3.5rem; }
 .lp section > h2 { font-size: 1.15rem; margin: 0 0 1rem; padding: 0; border: none; }
 .section-lead { color: var(--muted); font-size: 0.95rem; margin: 0 0 1.25rem; }
@@ -149,9 +161,11 @@ export const LP_STYLE = `
 
 /** ライト／ダーク双方でトークンを定義する。片方だけだと配色が抜ける */
 export const LP_TOKENS = `
-:root { --brand:#4338CA; --brand-muted:#EEF2FF; --brand-line:#C7D2FE; }
+/* --brand-on は --brand を下地に敷いたときの文字色。ダークの --brand は
+   淡い藤色なので、白を固定で置くと読めなくなる */
+:root { --brand:#4338CA; --brand-muted:#EEF2FF; --brand-line:#C7D2FE; --brand-on:#fff; }
 @media (prefers-color-scheme: dark) {
-  :root { --brand:#A5B4FC; --brand-muted:#1e2130; --brand-line:#3b3f57; }
+  :root { --brand:#A5B4FC; --brand-muted:#1e2130; --brand-line:#3b3f57; --brand-on:#12141c; }
 }
 `;
 
@@ -180,7 +194,7 @@ export function renderLandingPage({ escapeHtml, contactEmail, pages, operatorNam
 <div class="hero">
 <h1>${e(c.tagline)}</h1>
 <p class="lead">${e(c.lead)}</p>
-<p><span class="status">${e(c.status)}</span></p>
+<p><a class="status" href="${e(c.appStore.url)}">${e(c.appStore.label)}</a></p>
 </div>
 
 <section>
