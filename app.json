@@ -11,7 +11,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.comebacklog.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDevelopmentRegion": "ja",
+        "CFBundleLocalizations": ["ja"]
       },
       "buildNumber": "5"
     },
